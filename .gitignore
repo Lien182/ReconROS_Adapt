@@ -30,3 +30,13 @@
 *.exe
 *.out
 *.app
+
+
+build.sw
+build.hw
+build.msg
+
+build
+install
+.vscode
+log
