@@ -59,14 +59,14 @@ int main(int argc, char* argv[]) {
     for (unsigned int i = 0; i < frames.size(); ++i) {
 
         const auto& frame = frames.at(i);
-        const auto img_left = cv::imread(frame.left_img_path_, cv::IMREAD_COLOR);
-        const auto img_right = cv::imread(frame.right_img_path_, cv::IMREAD_COLOR);
+        const auto img_left = cv::imread(frame.left_img_path_, cv::IMREAD_GRAYSCALE);
+        const auto img_right = cv::imread(frame.right_img_path_, cv::IMREAD_GRAYSCALE);
 
-        msg_left = cv_bridge::CvImage(std_msgs::msg::Header(), "bgr8", img_left).toImageMsg();
+        msg_left = cv_bridge::CvImage(std_msgs::msg::Header(), "mono8", img_left).toImageMsg();
         msg_left->header.stamp = node->now();
         msg_left->header.frame_id = "camera_link";
 
-        msg_right = cv_bridge::CvImage(std_msgs::msg::Header(), "bgr8", img_right).toImageMsg();
+        msg_right = cv_bridge::CvImage(std_msgs::msg::Header(), "mono8", img_right).toImageMsg();
         msg_right->header.stamp = msg_left->header.stamp;
         msg_right->header.frame_id = "camera_link";
 

@@ -17,9 +17,8 @@ hw_fixed _tanh(hw_fixed x){
 }*/
 
 hw_fixed _tanh(const hw_fixed &x){
-#pragma HLS INLINE
 	for(int i=0; i<HW_DATA_TOTAL ;i++){
-#pragma HLS pipeline
+
 		if(x < tanh_index[i]){
 			return tanh_value[i-1];
 		}
@@ -29,7 +28,6 @@ hw_fixed _tanh(const hw_fixed &x){
 }
 
 hw_fixed relu(const hw_fixed &x){
-#pragma HLS inline
 	if(x>0) return x;
 	else return 0;
 }

@@ -18,7 +18,6 @@ void Pooling_Layer_1(hw_fixed src[image_Batch][CONV_1_TYPE][CONV_1_OUTPUT_WH][CO
 		for (int depth = 0; depth < POOL_1_TYPE; depth++){
 			for (int row = 0; row < POOL_1_OUTPUT_WH; row++){
 				for (int col = 0; col < POOL_1_OUTPUT_WH; col++){
-#pragma HLS pipeline
 					value = src[batch][depth][row*2][col*2]//[(depth + POOL_1_TYPE * batch)*POOL_1_INPUT_SIZE + (row * 2) * POOL_1_INPUT_WH + (col * 2)]
 						+ src[batch][depth][row*2][col*2+1]//src[(depth + POOL_1_TYPE * batch)*POOL_1_INPUT_SIZE + (row * 2) * POOL_1_INPUT_WH + (col * 2 + 1)]
 						+ src[batch][depth][row*2+1][col*2]//src[(depth + POOL_1_TYPE * batch)*POOL_1_INPUT_SIZE + (row * 2 + 1) * POOL_1_INPUT_WH + (col * 2)]
@@ -44,7 +43,6 @@ void Pooling_Layer_2(const hw_fixed src[image_Batch][CONV_2_TYPE][CONV_2_OUTPUT_
 		for (int depth = 0; depth < POOL_2_TYPE; depth++){
 			for (int row = 0; row < POOL_2_OUTPUT_WH; row++){
 				for (int col = 0; col < POOL_2_OUTPUT_WH; col++){
-#pragma HLS pipeline
 					value = src[batch][depth][row*2][col*2]//src[(depth + POOL_2_TYPE * batch)*POOL_2_INPUT_SIZE + (row * 2) * POOL_2_INPUT_WH + (col * 2)]
 						+ src[batch][depth][row*2][col*2+1]//src[(depth + POOL_2_TYPE * batch)*POOL_2_INPUT_SIZE + (row * 2) * POOL_2_INPUT_WH + (col * 2 + 1)]
 						+ src[batch][depth][row*2+1][col*2]//src[(depth + POOL_2_TYPE * batch)*POOL_2_INPUT_SIZE + (row * 2 + 1) * POOL_2_INPUT_WH + (col * 2)]

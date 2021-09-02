@@ -19,14 +19,11 @@ extern "C" {
 void read_image(uint32_t ram[INPUT_BATCH_SZ*INPUT_N_ROWS*INPUT_N_COLS/4], uint8_t image[INPUT_BATCH_SZ*INPUT_N_ROWS*INPUT_N_COLS]){
 	// Read the input stream and put the values in the image array
 
-#pragma HLS INLINE off
-
 	int b, r, c, i = 0;
 
 	batch_rd: for(b=0; b<INPUT_BATCH_SZ; b++){
 		row_rd: for (r=0; r<INPUT_N_ROWS; r++) {
 			col_rd: for (c=0; c<INPUT_N_COLS; c+=4){
-#pragma HLS PIPELINE
 				image[b*INPUT_N_COLS*INPUT_N_COLS + INPUT_N_COLS*r + c]   = (uint8_t)((ram[i] & 0x0000ff));
 				image[b*INPUT_N_COLS*INPUT_N_COLS + INPUT_N_COLS*r + c+1] = (uint8_t)((ram[i] & 0x0000ff00) >> 8);
 				image[b*INPUT_N_COLS*INPUT_N_COLS + INPUT_N_COLS*r + c+2] = (uint8_t)((ram[i] & 0x00ff0000) >> 16); 		
