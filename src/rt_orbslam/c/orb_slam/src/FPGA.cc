@@ -77,16 +77,16 @@ void FPGA::Compute_Keypoints( uint8_t* image_ptr, uint32_t image_width, uint32_t
     if(pthread_mutex_trylock( &fpga_mutex_0 ) == 0)
     {   
         //std::cout << "FPGA0: Send request" << std::endl;
-        mbox_put(resources_fast_request_0, (uint32_t)image_ptr);
-        mbox_put(resources_fast_request_0, image_width);
-        mbox_put(resources_fast_request_0, image_height);
-        mbox_put(resources_fast_request_0, (uint32_t)result_buffer_1);
+        mbox_put(rorbslam_fast_request_0, (uint32_t)image_ptr);
+        mbox_put(rorbslam_fast_request_0, image_width);
+        mbox_put(rorbslam_fast_request_0, image_height);
+        mbox_put(rorbslam_fast_request_0, (uint32_t)result_buffer_1);
 
         uint32_t tmp = (uint32_t)image_ptr;
 
         //std::cout << "image_ptr " <<  tmp << "; image_width"  <<  image_width << "; image_height" <<  image_height << std::endl;
 
-        nres =  mbox_get(resources_fast_response_0);
+        nres =  mbox_get(rorbslam_fast_response_0);
         //std::cout << "FPGA0: Got " << nres << "results" << std::endl;
         for(int i =0 ; i < nres; i++)
             keypoints.push_back(result_buffer_1[i]);
@@ -100,16 +100,16 @@ void FPGA::Compute_Keypoints( uint8_t* image_ptr, uint32_t image_width, uint32_t
     {
         pthread_mutex_lock( &fpga_mutex_1 );
         //std::cout << "FPGA1: Send request" << std::endl;
-        mbox_put(resources_fast_request_1, (uint32_t)image_ptr);
-        mbox_put(resources_fast_request_1, image_width);
-        mbox_put(resources_fast_request_1, image_height);
-        mbox_put(resources_fast_request_1, (uint32_t)result_buffer_2);
+        mbox_put(rorbslam_fast_request_1, (uint32_t)image_ptr);
+        mbox_put(rorbslam_fast_request_1, image_width);
+        mbox_put(rorbslam_fast_request_1, image_height);
+        mbox_put(rorbslam_fast_request_1, (uint32_t)result_buffer_2);
 
         uint32_t tmp = (uint32_t)image_ptr;
 
         //std::cout << "image_ptr " <<  tmp << "; image_width"  <<  image_width << "; image_height" <<  image_height << std::endl;
 
-        nres =  mbox_get(resources_fast_response_1);
+        nres =  mbox_get(rorbslam_fast_response_1);
         //std::cout << "FPGA1: Got " << nres << "results" << std::endl;
         for(int i =0 ; i < nres; i++)
             keypoints.push_back(result_buffer_2[i]);

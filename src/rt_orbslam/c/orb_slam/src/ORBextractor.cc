@@ -68,7 +68,7 @@
 using namespace cv;
 using namespace std;
 
-extern int bUseHw;
+//extern int bUseHw;
 
 namespace ORB_SLAM2
 {
@@ -787,7 +787,8 @@ void ORBextractor::ComputeKeyPointsOctTree(vector<vector<KeyPoint> >& allKeypoin
 
 
 
-if(bUseHw == 1)
+//if(bUseHw == 1)
+if(1)
 {
 
         #warning ORBextractor.cc: USE_FPGA enabled

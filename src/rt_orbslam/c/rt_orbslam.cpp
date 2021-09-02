@@ -9,17 +9,11 @@
 #include "orb_slam/include/System.h"
 #include "orb_slam/include/FPGA.h"
 
-
-#if USE_RECONOS == 1
-
 extern "C" {
     #include "reconos.h"
-    #include "reconos_app.h"
+    #include "reconos_thread.h"
 }
 
-#endif
-
-#define COMPILEDWITHC11
 
 
 
@@ -43,12 +37,16 @@ THREAD_ENTRY()
     // Main loop
     cv::Mat imLeft, imRight;
     while(true)
+    {
 
 
+        ros_subscriber_message_take(rorbslam_sub_left,  rorbslam_image_msg_left);
+        ros_subscriber_message_take(rorbslam_sub_right, rorbslam_image_msg_right);
         // Read left and right images from file
-        //imLeft = cv::imread(strImageLeft,CV_LOAD_IMAGE_UNCHANGED);
-        //imRight = cv::imread(strImageRight,CV_LOAD_IMAGE_UNCHANGED);
-        double tframe;
+        
+        imLeft  = cv::Mat(100,100,CV_8S,rorbslam_image_msg_left->data.data,1);
+        imRight = cv::Mat(100,100,CV_8S,rorbslam_image_msg_right->data.data,1);
+        double tframe = 0.0;
         // Pass the images to the SLAM system
         SLAM.TrackStereo(imLeft,imRight,tframe);
 
@@ -59,19 +57,8 @@ THREAD_ENTRY()
     // Stop all threads
     SLAM.Shutdown();
 
-    // Tracking time statistics
-    sort(vTimesTrack.begin(),vTimesTrack.end());
-    float totaltime = 0;
-    for(int ni=0; ni<nImages; ni++)
-    {
-        totaltime+=vTimesTrack[ni];
-    }
-    cout << "-------" << endl << endl;
-    cout << "median tracking time: " << vTimesTrack[nImages/2] << endl;
-    cout << "mean tracking time: " << totaltime/nImages << endl;
-
     // Save camera trajectory
     SLAM.SaveTrajectoryKITTI("CameraTrajectory.txt");
 
-    return 0;
+    return;
 }

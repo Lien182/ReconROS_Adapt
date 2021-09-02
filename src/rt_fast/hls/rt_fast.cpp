@@ -258,7 +258,7 @@ THREAD_ENTRY() {
                 //hls::stream<uint32> vKeysCell;
 
                 //#pragma HLS stream depth=200 variable=cell_stream.data_stream
-                #pragma HLS PIPELINE 
+                //#pragma HLS PIPELINE 
                 #pragma HLS stream depth=2500 variable=cell_stream.data_stream
                 //#pragma HLS stream depth=1024 variable=vKeysCell
                  {   
