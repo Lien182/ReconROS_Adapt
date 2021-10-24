@@ -135,9 +135,12 @@ int main(int argc, char **argv) {
 	reconos_app_init();
 
 	uint32_t inverse_result;
-
-
 	struct reconos_thread* threads[MAX_THREADS];
+
+
+	printf("ReconROS Init done %d \n", 0);
+
+	/*
 
 #if (DISABLE_HWPR == 0)
 	init_zycap();
@@ -205,7 +208,7 @@ int main(int argc, char **argv) {
 		
 	}
 	
-
+	*/
 
 	uint32_t count = 0;
 
