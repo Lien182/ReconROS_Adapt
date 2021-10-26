@@ -1,167 +1,258 @@
 #include "reconos_calls.h"
 #include "reconos_thread.h"
-
 #include <stdint.h>
 
 
-#include "hls_video.h"
 
-
-using namespace hls;
-
-const int EDGE_THRESHOLD = 19;
-
-const int iniThFAST = 20;
-//const int minThFAST = 7;
-const int minThFAST = 14;
 
 #define W 30
-
-#define FAST_WINDOW_SIZE 50
-
+#define N_KEYPOINTS         300
+#define FAST_WINDOW_SIZE    50
 #define IMAGE_CACHE_WIDTH   1280
 #define IMAGE_CACHE_HEIGHT  150
 
 
+#define uchar unsigned char
 
-//generate array 
-template<int PSize,int KERNEL_SIZE, int N, int SRC_T,int ROWS,int COLS>
-void _FAST_t_opr(
-        hls::Mat<ROWS,COLS,SRC_T>    &_src,
-        uint32_t (&_vKeysCell)[N],
-        HLS_TNAME(SRC_T)        _threshold,
-        bool                    _nonmax_supression,
-        int                     (&flag)[PSize][2], 
-        uint32_t &nPoints,   
-        uint32_t x_offset,
-        uint32_t y_offset
-        )
+static const int EDGE_THRESHOLD = 19;
+static const int iniThFAST = 20;
+static const int minThFAST = 14;
+
+#define AP_MAX(a, b) ((a) > (b) ? (a) : (b))
+#define AP_MIN(a, b) ((a) < (b) ? (a) : (b))
+
+void mat_copy( uint8_t * data, uint8_t* _dest, int iniY, int iniX, int cache_cnt,uint32_t image_ptr_offset, uint32_t image_width);
+uint32_t cvFAST(uint8_t _img[FAST_WINDOW_SIZE*FAST_WINDOW_SIZE], uint32_t keypoints[N_KEYPOINTS*2], int threshold, bool nonmax_suppression, uint32_t x_offset, uint32_t y_offset);
+
+#define read_next_lines {for(int __i = 0; __i < FAST_WINDOW_SIZE; __i++){ \
+                                    uint32_t _offset = (image_ptr + cache_cnt*(image_step))&3; \
+                                    MEM_READ(((image_ptr + cache_cnt*(image_step))&(~3)), &image_data[(cache_cnt%IMAGE_CACHE_HEIGHT)*IMAGE_CACHE_WIDTH],((image_width+_offset+3)&(~3)));\
+                                    cache_cnt+=1;} }
+
+
+int cornerScore(const uchar* ptr, const int pixel[], int threshold)
 {
-    typedef typename pixel_op_type<HLS_TNAME(SRC_T)>::T INPUT_T;
-    LineBuffer<KERNEL_SIZE-1,COLS,INPUT_T>    k_buf;
-    LineBuffer<2,COLS+KERNEL_SIZE,ap_int<16> >         core_buf;
-    Window<3,3,ap_int<16> >                            core_win;
-    Window<KERNEL_SIZE,KERNEL_SIZE,INPUT_T>       win;
-    Scalar<HLS_MAT_CN(SRC_T), HLS_TNAME(SRC_T)>             s;
-    int rows= _src.rows;
-    int cols= _src.cols;
-    assert(rows <= ROWS);
-    assert(cols <= COLS);
-    int kernel_half=KERNEL_SIZE/2;
-    ap_uint<2> flag_val[PSize+PSize/2+1];
-    int  flag_d[PSize+PSize/2+1];
-#pragma HLS ARRAY_PARTITION variable=flag_val dim=0
-#pragma HLS ARRAY_PARTITION variable=flag_d dim=0
-    uint32_t index=0;
-    int offset=KERNEL_SIZE/2;
+    const int K = 8, N = K*3 + 1;
+    int k, v = ptr[0];
+    short d[N];
+    for( k = 0; k < N; k++ )
+        d[k] = (short)(v - ptr[pixel[k]]);
 
-    if(_nonmax_supression)
     {
-        offset=offset+1;
-    }
- loop_height: for(HLS_SIZE_T i=0;i<rows+offset;i++) {
-    loop_width: for(HLS_SIZE_T j=0;j<cols+offset;j++) {
-#pragma HLS LOOP_FLATTEN off
-#pragma HLS PIPELINE II=1
-            if(i<rows&&j<cols) {
-                for(int r= 0;r<KERNEL_SIZE;r++) {
-                    for(int c=0;c<KERNEL_SIZE-1;c++) {
-                        win.val[r][c]=win.val[r][c+1];//column left shift
-                    }
-                }
-                win.val[0][KERNEL_SIZE-1]=k_buf.val[0][j];
-                for(int buf_row= 1;buf_row< KERNEL_SIZE-1;buf_row++) {
-                    win.val[buf_row][KERNEL_SIZE-1]=k_buf.val[buf_row][j];
-                    k_buf.val[buf_row-1][j]=k_buf.val[buf_row][j];
-                }
-                //-------
-                _src>>s;
-                win.val[KERNEL_SIZE-1][KERNEL_SIZE-1]=s.val[0];
-                k_buf.val[KERNEL_SIZE-2][j]=s.val[0];
-            }
-            //------core
-            for(int r= 0;r<3;r++)
-            {
-                for(int c=0;c<3-1;c++)
-                {
-                    core_win.val[r][c]=core_win.val[r][c+1];//column left shift
-                }
-            }
-            core_win.val[0][3-1]=core_buf.val[0][j];
-            for(int buf_row= 1;buf_row< 3-1;buf_row++)
-            {
-                core_win.val[buf_row][3-1]=core_buf.val[buf_row][j];
-                core_buf.val[buf_row-1][j]=core_buf.val[buf_row][j];
-            }
-            int core=0;
-            //output
-            //if(i>=KERNEL_SIZE-1&&j>=KERNEL_SIZE-1)
-            if(i>=KERNEL_SIZE-1 && i<rows && j>=KERNEL_SIZE-1 & j<cols)
-            {
-                //process
-                bool iscorner=fast_judge<PSize>(win,(INPUT_T)_threshold,flag_val,flag_d,flag,core,_nonmax_supression);
-                if(iscorner&&!_nonmax_supression)
-                {
-                        if(index<N)
-                        {
-                            //_keypoints[index].x=j-offset;
-                            //_keypoints[index].y=i-offset;
-                            _vKeysCell[index] = (((uint32_t)(j-offset)) + x_offset) | ((((uint32_t)(i-offset)) + y_offset) << 16);
-                            index++;
-                        }
-                }
-            }
-            if(i>=rows||j>=cols)
-            {
-                core=0;
-            }
-            if(_nonmax_supression)
-            {
-                core_win.val[3-1][3-1]=core;
-                core_buf.val[3-2][j]=core;
-                if(i>=KERNEL_SIZE&&j>=KERNEL_SIZE&&core_win.val[1][1]!=0)
-                {
-                    bool iscorner=fast_nonmax(core_win);
-                    if(iscorner)
-                    {
-                        if(index<N)
-                        {
-                            //_keypoints[index].x=j-offset;
-                            //_keypoints[index].y=i-offset;
-                            _vKeysCell[index] = (((uint32_t)(j-offset)) + x_offset) | ((((uint32_t)(i-offset)) + y_offset) << 16);
-                            index++;
-                        }
-                    }
-                }
-            }
 
+        int a0 = threshold;
+        for( k = 0; k < 16; k += 2 )
+        {
+            int a = AP_MIN((int)d[k+1], (int)d[k+2]);
+            a = AP_MIN(a, (int)d[k+3]);
+            if( a <= a0 )
+                continue;
+            a = AP_MIN(a, (int)d[k+4]);
+            a = AP_MIN(a, (int)d[k+5]);
+            a = AP_MIN(a, (int)d[k+6]);
+            a = AP_MIN(a, (int)d[k+7]);
+            a = AP_MIN(a, (int)d[k+8]);
+            a0 = AP_MAX(a0, AP_MIN(a, (int)d[k]));
+            a0 = AP_MAX(a0, AP_MIN(a, (int)d[k+9]));
+        }
+
+        int b0 = -a0;
+        for( k = 0; k < 16; k += 2 )
+        {
+            int b = AP_MAX((int)d[k+1], (int)d[k+2]);
+            b = AP_MAX(b, (int)d[k+3]);
+            b = AP_MAX(b, (int)d[k+4]);
+            b = AP_MAX(b, (int)d[k+5]);
+            if( b >= b0 )
+                continue;
+            b = AP_MAX(b, (int)d[k+6]);
+            b = AP_MAX(b, (int)d[k+7]);
+            b = AP_MAX(b, (int)d[k+8]);
+
+            b0 = AP_MIN(b0, AP_MAX(b, (int)d[k]));
+            b0 = AP_MIN(b0, AP_MAX(b, (int)d[k+9]));
+        }
+
+        threshold = -b0 - 1;
+    }
+
+    return threshold;
+}
+
+
+void makeOffsets(int pixel[25], int rowStride, int patternSize)
+{
+    static const int offsets16[][2] =
+    {
+        {0,  3}, { 1,  3}, { 2,  2}, { 3,  1}, { 3, 0}, { 3, -1}, { 2, -2}, { 1, -3},
+        {0, -3}, {-1, -3}, {-2, -2}, {-3, -1}, {-3, 0}, {-3,  1}, {-2,  2}, {-1,  3}
+    };
+
+    static const int offsets12[][2] =
+    {
+        {0,  2}, { 1,  2}, { 2,  1}, { 2, 0}, { 2, -1}, { 1, -2},
+        {0, -2}, {-1, -2}, {-2, -1}, {-2, 0}, {-2,  1}, {-1,  2}
+    };
+
+    static const int offsets8[][2] =
+    {
+        {0,  1}, { 1,  1}, { 1, 0}, { 1, -1},
+        {0, -1}, {-1, -1}, {-1, 0}, {-1,  1}
+    };
+
+    const int (*offsets)[2] = patternSize == 16 ? offsets16 :
+                              patternSize == 12 ? offsets12 :
+                              patternSize == 8  ? offsets8  : 0;
+
+  //  CV_Assert(pixel && offsets);
+
+    int k = 0;
+    for( ; k < patternSize; k++ )
+        pixel[k] = offsets[k][0] + offsets[k][1] * rowStride;
+    for( ; k < 25; k++ )
+        pixel[k] = pixel[k - patternSize];
+}
+
+uint32_t cvFAST(uint8_t _img[FAST_WINDOW_SIZE*FAST_WINDOW_SIZE], uint32_t keypoints[N_KEYPOINTS*2], int threshold, bool nonmax_suppression, uint32_t x_offset, uint32_t y_offset)
+{
+    uint32_t u32Index = 0;
+    const int patternSize = 16;
+
+    const int K = patternSize/2, N = patternSize + K + 1;
+    int i, j, k, pixel[25];
+    makeOffsets(pixel, (int)FAST_WINDOW_SIZE, patternSize);
+
+    threshold = AP_MIN(AP_MAX(threshold, 0), 255);
+
+    uchar threshold_tab[512];
+    for( i = -255; i <= 255; i++ )
+        threshold_tab[i+255] = (uchar)(i < -threshold ? 1 : i > threshold ? 2 : 0);
+
+    uchar buf[3][FAST_WINDOW_SIZE] = { 0 };
+    int cpbuf[3][FAST_WINDOW_SIZE+1] = { 0 };
+
+    for (unsigned idx = 0; idx < 3; ++idx)
+    {
+        for(unsigned jdx = 0; jdx < FAST_WINDOW_SIZE; jdx++)
+            buf[idx][jdx] = 0;
+    }
+
+    for(i = 3; i < FAST_WINDOW_SIZE-2; i++)
+    {
+        const uchar* ptr = &_img[i*FAST_WINDOW_SIZE] + 3;
+        uchar* curr = buf[(i - 3)%3];
+        int* cornerpos = cpbuf[(i - 3)%3] + 1; // cornerpos[-1] is used to store a value
+        
+        for(unsigned jdx = 0; jdx < FAST_WINDOW_SIZE; jdx++)
+            curr[jdx] = 0;
+        //memset(curr, 0, FAST_WINDOW_SIZE);
+        int ncorners = 0;
+
+        if( i < FAST_WINDOW_SIZE - 3 )
+        {
+            j = 3;
+            for( ; j < FAST_WINDOW_SIZE - 3; j++, ptr++ )
+            {
+                int v = ptr[0];
+                const uchar* tab = &threshold_tab[0] - v + 255;
+                int d = tab[ptr[pixel[0]]] | tab[ptr[pixel[8]]];
+
+                if( d == 0 )
+                    continue;
+
+                d &= tab[ptr[pixel[2]]] | tab[ptr[pixel[10]]];
+                d &= tab[ptr[pixel[4]]] | tab[ptr[pixel[12]]];
+                d &= tab[ptr[pixel[6]]] | tab[ptr[pixel[14]]];
+
+                if( d == 0 )
+                    continue;
+
+                d &= tab[ptr[pixel[1]]] | tab[ptr[pixel[9]]];
+                d &= tab[ptr[pixel[3]]] | tab[ptr[pixel[11]]];
+                d &= tab[ptr[pixel[5]]] | tab[ptr[pixel[13]]];
+                d &= tab[ptr[pixel[7]]] | tab[ptr[pixel[15]]];
+
+                if( d & 1 )
+                {
+                    int vt = v - threshold, count = 0;
+
+                    for( k = 0; k < N; k++ )
+                    {
+                        int x = ptr[pixel[k]];
+                        if(x < vt)
+                        {
+                            if( ++count > K )
+                            {
+                                cornerpos[ncorners++] = j;
+                                if(nonmax_suppression)
+                                    curr[j] = (uchar)cornerScore(ptr, pixel, threshold);
+                                break;
+                            }
+                        }
+                        else
+                            count = 0;
+                    }
+                }
+
+                if( d & 2 )
+                {
+                    int vt = v + threshold, count = 0;
+
+                    for( k = 0; k < N; k++ )
+                    {
+                        int x = ptr[pixel[k]];
+                        if(x > vt)
+                        {
+                            if( ++count > K )
+                            {
+                                cornerpos[ncorners++] = j;
+                                if(nonmax_suppression)
+                                    curr[j] = (uchar)cornerScore(ptr, pixel, threshold);
+                                break;
+                            }
+                        }
+                        else
+                            count = 0;
+                    }
+                }
+            }
+        }
+
+        cornerpos[-1] = ncorners;
+
+        if( i == 3 )
+            continue;
+
+        const uchar* prev = buf[(i - 4 + 3)%3];
+        const uchar* pprev = buf[(i - 5 + 3)%3];
+        cornerpos = cpbuf[(i - 4 + 3)%3] + 1; // cornerpos[-1] is used to store a value
+        ncorners = cornerpos[-1];
+
+        for( k = 0; k < ncorners; k++ )
+        {
+            j = cornerpos[k];
+            int score = prev[j];
+            if( !nonmax_suppression ||
+               (score > prev[j+1] && score > prev[j-1] &&
+                score > pprev[j-1] && score > pprev[j] && score > pprev[j+1] &&
+                score > curr[j-1] && score > curr[j] && score > curr[j+1]) )
+            {
+                //keypoints.push_back(KeyPoint((float)j, (float)(i-1), 7.f, -1, (float)score));
+                keypoints[u32Index] = (((uint32_t)(j + x_offset)) | ((((uint32_t)(i-1)) + y_offset) << 16));
+                keypoints[u32Index+1] = score;
+                u32Index+=2;
+            }
         }
     }
 
-	nPoints = index;
-}
-
-template<int N, int SRC_T,int ROWS,int COLS>
-void  _FASTX(
-        Mat<ROWS,COLS,SRC_T>    &_src,
-        uint32_t (&_vKeysCell)[N],
-        HLS_TNAME(SRC_T)    _threshold,
-        bool   _nomax_supression,
-        uint32_t &_nPoints,
-        uint32_t x_offset,
-        uint32_t y_offset
-        )
-{
-#pragma HLS INLINE
-    int flag[16][2]={{3,0},{4,0},{5,1},{6,2},{6,3},{6,4},{5,5},{4,6},
-        {3,6},{2,6},{1,5},{0,4},{0,3},{0,2},{1,1},{2,0}};
-    _FAST_t_opr<16,7>(_src,_vKeysCell,_threshold,_nomax_supression,flag,_nPoints, x_offset, y_offset);
+    return u32Index;
 }
 
 
 
 
-void mat_copy( uint8_t data[][IMAGE_CACHE_WIDTH], hls::Mat<FAST_WINDOW_SIZE,FAST_WINDOW_SIZE,HLS_8UC1>  &_dest, int iniY, int iniX, int cache_cnt,uint32_t image_ptr_offset, uint32_t image_width)
+
+void mat_copy( uint8_t * data, uint8_t* _dest, int iniY, int iniX, int cache_cnt,uint32_t image_ptr_offset, uint32_t image_width)
 {
     for(int i = 0; i < (FAST_WINDOW_SIZE); i++)
     {
@@ -170,46 +261,47 @@ void mat_copy( uint8_t data[][IMAGE_CACHE_WIDTH], hls::Mat<FAST_WINDOW_SIZE,FAST
 
         for(int j = 0; j < (FAST_WINDOW_SIZE); j++)
         {
-            _dest.write(data[line_index%IMAGE_CACHE_HEIGHT][offset + (j+iniX)]);
+            _dest[j+FAST_WINDOW_SIZE*i] = data[offset + (j+iniX)+ (line_index %IMAGE_CACHE_HEIGHT) *IMAGE_CACHE_WIDTH];
         }
     }
 }
-
-
-
-#define read_next_lines {for(int __i = 0; __i < FAST_WINDOW_SIZE; __i++){ \
-                                    uint32_t _offset = (image_ptr + cache_cnt*(image_width))&3; \
-                                    MEM_READ(((image_ptr + cache_cnt*(image_width))&(~3)), image_data[(cache_cnt%IMAGE_CACHE_HEIGHT)],((image_width+_offset+3)&(~3)));\
-                                    cache_cnt+=1;} }
-
-
 
 THREAD_ENTRY() {
 
     uint32_t nresults;
 
     THREAD_INIT();
-	uint32_t initdata = GET_INIT_DATA();
+	uint32_t initdata = (uint32_t)GET_INIT_DATA();
+
+    uint32_t mbox_request;
+	uint32_t mbox_response;
+
+    if(initdata == 0)
+    {
+        mbox_request  = rorbslam_fast_request_0;
+        mbox_response = rorbslam_fast_response_0;
+    } 
+    else
+    {
+        mbox_request  = rorbslam_fast_request_1;
+        mbox_response = rorbslam_fast_response_1;
+    }
 
 
-    uint8_t image_data[IMAGE_CACHE_HEIGHT][IMAGE_CACHE_WIDTH];
-    #pragma HLS array_partition variable=image_data block  factor=50  dim=1
+    uint8_t image_data[IMAGE_CACHE_HEIGHT*IMAGE_CACHE_WIDTH];
+    //#pragma HLS array_partition variable=image_data block  factor=50  dim=1
 	while(1)
 	{
         uint32_t cache_cnt = 0;
         uint32_t nWrittenPoints = 0;
-       
-
-		uint32_t   image_ptr    = MBOX_GET(initdata*2);
-		uint32_t   image_width  = MBOX_GET(initdata*2);
-		uint32_t   image_height = MBOX_GET(initdata*2);
-        uint32_t   feature_dest = MBOX_GET(initdata*2);
-
-        
+        uint32_t image_ptr    = MBOX_GET(mbox_request);
+        uint32_t image_width  = MBOX_GET(mbox_request);
+        uint32_t image_height = MBOX_GET(mbox_request);
+        uint32_t image_step   = MBOX_GET(mbox_request);
+        uint32_t feature_dest = MBOX_GET(mbox_request);
 
         uint32_t image_ptr_offset = image_ptr & 3;
-        
-		const int minBorderX = EDGE_THRESHOLD-3;
+	    const int minBorderX = EDGE_THRESHOLD-3;
         const int minBorderY = minBorderX;
         const int maxBorderX = image_width -EDGE_THRESHOLD+3;
         const int maxBorderY = image_height-EDGE_THRESHOLD+3;
@@ -221,80 +313,57 @@ THREAD_ENTRY() {
         const int hCell = 50;
         const int nCols = width/50;
         const int nRows = height/50;
-        
+
         read_next_lines;
 
-
-
-		for(int i=0; i<nRows; i++)
-		{           
-
+        for(int i=0; i<nRows; i++)
+        {
             read_next_lines;
-           
 
-			const int iniY =minBorderY+i*hCell; //this was float
-			int maxY = iniY+hCell+6; //this was float
+            const int iniY =minBorderY+i*hCell; //this was float
+            int maxY = iniY+hCell+6; //this was float
 
-			if(iniY>=maxBorderY-3)
-				continue;
-			if(maxY>maxBorderY)
-				maxY = maxBorderY;
+            if(iniY>=maxBorderY-3)
+                continue;
+            if(maxY>maxBorderY)
+                maxY = maxBorderY;
 
-			for(int j=0; j<nCols; j++)
-			{
-               const int iniX =minBorderX+j*wCell; //this was float
-				int maxX = iniX+wCell+6;//this was float
-				if(iniX>=maxBorderX-6)
-					continue;
-				if(maxX>maxBorderX)
-					maxX = maxBorderX;
+            for(int j=0; j<nCols; j++)
+            {
+                const int iniX =minBorderX+j*wCell; //this was float
+                int maxX = iniX+wCell+6;//this was float
+                if(iniX>=maxBorderX-6)
+                    continue;
+                if(maxX>maxBorderX)
+                    maxX = maxBorderX;
 
-				uint32_t vKeysCell[256];
+                uint32_t vKeysCell[N_KEYPOINTS*2];
                 uint32_t nPoints;
+                uint8_t img_tmp[FAST_WINDOW_SIZE*FAST_WINDOW_SIZE];
+                //hls::Mat<FAST_WINDOW_SIZE,FAST_WINDOW_SIZE,HLS_8UC1> cell_stream(FAST_WINDOW_SIZE,FAST_WINDOW_SIZE);
+                //#pragma HLS stream depth=2500 variable=cell_stream.data_stream
 
-                hls::Mat<FAST_WINDOW_SIZE,FAST_WINDOW_SIZE,HLS_8UC1> cell_stream(FAST_WINDOW_SIZE,FAST_WINDOW_SIZE);
-                //uint8_t cell_array[50*50];
-                
-                //hls::stream<uint32> vKeysCell;
+                {
+                     #pragma hls inline region
 
-                //#pragma HLS stream depth=200 variable=cell_stream.data_stream
-                //#pragma HLS PIPELINE 
-                #pragma HLS stream depth=2500 variable=cell_stream.data_stream
-                //#pragma HLS stream depth=1024 variable=vKeysCell
-                 {   
                     nPoints = 0;
-                    mat_copy( image_data, cell_stream, iniY,  iniX,  cache_cnt, image_ptr_offset, image_width);
-                    #pragma HLS INLINE
-                    _FASTX(cell_stream, vKeysCell,  minThFAST, true, nPoints, j*wCell, i*hCell);
-                     
-                    MEM_WRITE(vKeysCell,feature_dest,nPoints*4);
+                    mat_copy( image_data, img_tmp, iniY, iniX, cache_cnt, image_ptr_offset, image_width);
+                    
+                    nPoints = cvFAST(img_tmp, vKeysCell,  minThFAST, true, j*wCell, i*hCell);
+                    MEM_WRITE(vKeysCell, feature_dest, nPoints*4);
                     feature_dest+=(4*nPoints);
-                    nWrittenPoints+= nPoints;                   
+                    nWrittenPoints+= nPoints;
                 }
-                
-	
-               /*
-				if(nPoints == 0)
-				{
-                   
-                    //#pragma HLS stream depth=200 variable=cell_stream.data_stream
-                    {
-                        #pragma HLS dataflow
-                        #pragma HLS INLINE
-                        mat_copy( image_data, cell_stream, iniY,  iniX,  image_width);
-                        //FPGA::FPGA_FAST(mvImagePyramid[level].rowRange(iniY,maxY).colRange(iniX,maxX),	vKeysCell,minThFAST,true);
-                        nPoints = _FASTX<uint16, 256,HLS_8UC1, FAST_WINDOW_SIZE,FAST_WINDOW_SIZE>( cell_stream, vKeysCell,  iniThFAST, true);
-                    }
-				}
-                
-                */
 
+            }
+        }
 
-				
-			}
-		}
-
-        MBOX_PUT(initdata*2+1, nWrittenPoints);
+        MBOX_PUT(mbox_response, nWrittenPoints);
 	}
 
 }
+
+
+
+
+
