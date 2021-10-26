@@ -68,8 +68,6 @@
 using namespace cv;
 using namespace std;
 
-//extern int bUseHw;
-
 namespace ORB_SLAM2
 {
 
@@ -787,96 +785,11 @@ void ORBextractor::ComputeKeyPointsOctTree(vector<vector<KeyPoint> >& allKeypoin
 
 
 
-//if(bUseHw == 1)
-if(1)
-{
 
-        #warning ORBextractor.cc: USE_FPGA enabled
-        uint32_t feature_cnt = 0;
-        vector<uint32_t> kpts;
-        FPGA::Compute_Keypoints( mvImagePyramid[level].data , mvImagePyramid[level].cols, mvImagePyramid[level].rows, nfeatures, kpts );
+        uint32_t feature_cnt = 0;        
+        FPGA::Compute_Keypoints( mvImagePyramid[level], nfeatures, vToDistributeKeys );
 
-        for(vector<uint32_t>::iterator vit=kpts.begin(); vit!=kpts.end();vit++)
-        {
-            vToDistributeKeys.push_back(KeyPoint((float)(((uint32_t)*vit) & 0x0000ffff), (float)((((uint32_t)*vit) & 0xffff0000)>>16), 7.f, -1, 0));
-            feature_cnt++;
-        }
-
-        //std::cout << "Feature Count = " << feature_cnt << std::endl;
-}
-
-/*
-        vector<cv::KeyPoint> vKeysCell;
-        FPGA::Compute_Keypoints( mvImagePyramid[level].data , mvImagePyramid[level].cols, mvImagePyramid[level].rows, nfeatures, vKeysCell );
-        if(!vKeysCell.empty())
-        {
-            for(vector<cv::KeyPoint>::iterator vit=vKeysCell.begin(); vit!=vKeysCell.end();vit++)
-            {
-
-                vToDistributeKeys.push_back(*vit);
-            }
-        }
-
-*/
-
-else
-{
-
-
-
-        const float width = (maxBorderX-minBorderX);
-        const float height = (maxBorderY-minBorderY);
-
-        const int nCols = width/W;
-        const int nRows = height/W;
-        const int wCell = ceil(width/nCols);
-        const int hCell = ceil(height/nRows);
-
-        for(int i=0; i<nRows; i++)
-        {
-            const float iniY =minBorderY+i*hCell;
-            float maxY = iniY+hCell+6;
-
-            if(iniY>=maxBorderY-3)
-                continue;
-            if(maxY>maxBorderY)
-                maxY = maxBorderY;
-
-            for(int j=0; j<nCols; j++)
-            {
-                const float iniX =minBorderX+j*wCell;
-                float maxX = iniX+wCell+6;
-                if(iniX>=maxBorderX-6)
-                    continue;
-                if(maxX>maxBorderX)
-                    maxX = maxBorderX;
-
-                vector<cv::KeyPoint> vKeysCell;
-                FPGA::FPGA_FAST(mvImagePyramid[level].rowRange(iniY,maxY).colRange(iniX,maxX),
-                     vKeysCell,14,true);
-
-/*
-                if(vKeysCell.empty())
-                {
-                    FPGA::FPGA_FAST(mvImagePyramid[level].rowRange(iniY,maxY).colRange(iniX,maxX),
-                         vKeysCell,minThFAST,true);
-                }
-                */
-
-                if(!vKeysCell.empty())
-                {
-                    for(vector<cv::KeyPoint>::iterator vit=vKeysCell.begin(); vit!=vKeysCell.end();vit++)
-                    {
-                        (*vit).pt.x+=j*wCell;
-                        (*vit).pt.y+=i*hCell;
-                        vToDistributeKeys.push_back(*vit);
-                    }
-                }
-
-            }
-        }
-
-    }
+        //std::cout << "vToDistributeKeys.size=" << vToDistributeKeys.size() << std::endl; 
 
         vector<KeyPoint> & keypoints = allKeypoints[level];
         keypoints.reserve(nfeatures);
