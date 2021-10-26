@@ -34,4 +34,16 @@ void handle_commandline(int argc, char** argv);
 #define IMAGE_WIDTH 1920
 
 
+typedef struct 
+{
+    int     bUseHw;
+    char *  strVocFile;
+    char *  strSettingsFile;
+    struct reconos_thread* fast_threads[2];
+    int     nFastThreads;
+    struct reconos_thread* orbslam_thread;
+} t_orbslam_settings;
+
+
+
 #endif /* MATRIXMUL_H_ */
