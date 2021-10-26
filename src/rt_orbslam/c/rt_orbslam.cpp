@@ -13,6 +13,7 @@
 extern "C" {
     #include "reconos.h"
     #include "reconos_thread.h"
+    #include "../application/main.h"
 }
 
 
@@ -23,12 +24,12 @@ extern "C" THREAD_ENTRY(); // this is required because of the mixture of c and c
 THREAD_ENTRY()
 {
 
-    const string strVocFile = "hierundda";
-    const string strSettingsFile = "daundhier";
+    t_orbslam_settings * orbslam_settings = (t_orbslam_settings *)data;
+
+    const string strVocFile(orbslam_settings->strVocFile);
+    const string strSettingsFile( orbslam_settings->strSettingsFile);
   
-    reconos_thread_create_hwt_fast((void*)0);
-    reconos_thread_create_hwt_fast((void*)1);
-    FPGA::FPGA_Init();
+    FPGA::FPGA_Init(orbslam_settings->bUseHw);
 
 
     ORB_SLAM2::System SLAM(strVocFile,strSettingsFile, ORB_SLAM2::System::STEREO,false);
