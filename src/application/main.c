@@ -25,6 +25,15 @@
 #include "zycap_linux.h"
 
 
+#define NSLOTS 4
+#define NTHREADS 5
+
+#define TINVERSE 	0
+#define TSORT		1
+#define TSOBEL		2
+#define TMNIST		3
+#define TFAST		4
+
 
 
 void init_msg(void)
@@ -91,19 +100,36 @@ int main(int argc, char **argv)
 
 	uint32_t inverse_result;
 	struct reconos_thread* threads[8];
+	t_zycap zycap;
 
-	init_zycap();
 
-	Prefetch_PR_Bitstream("/mnt/bitstreams/pblock_slot_0_inverse_0_partial.bit");
-	Prefetch_PR_Bitstream("/mnt/bitstreams/pblock_slot_0_sobel_0_partial.bit");
-	Prefetch_PR_Bitstream("/mnt/bitstreams/pblock_slot_0_sortdemo_0_partial.bit");
-	Prefetch_PR_Bitstream("/mnt/bitstreams/pblock_slot_1_inverse_1_partial.bit");
-	Prefetch_PR_Bitstream("/mnt/bitstreams/pblock_slot_1_sobel_1_partial.bit");
-	Prefetch_PR_Bitstream("/mnt/bitstreams/pblock_slot_1_sortdemo_1_partial.bit");
-	Prefetch_PR_Bitstream("/mnt/bitstreams/pblock_slot_2_fast_2_partial.bit");
-	Prefetch_PR_Bitstream("/mnt/bitstreams/pblock_slot_2_mnist_2_partial.bit");
-	Prefetch_PR_Bitstream("/mnt/bitstreams/pblock_slot_3_fast_3_partial.bit");
-	Prefetch_PR_Bitstream("/mnt/bitstreams/pblock_slot_3_mnist_3_partial.bit");
+	t_bitstream bitstreams[NSLOTS][NTHREADS];
+
+
+	for(int i = 0; i < NSLOTS; i++)
+	{
+		for( int j = 0; j < NTHREADS; j++)
+		{
+			bitstreams[i][j].data = 0;
+			bitstreams[i][j].size = 0;
+			
+		}
+	}
+
+	Zycap_Init(&zycap);
+
+	
+
+	Zycap_Prefetch_Bitstream("/mnt/bitstreams/pblock_slot_0_inverse_0_partial.bit", 	&bitstreams[0][TINVERSE]);
+	Zycap_Prefetch_Bitstream("/mnt/bitstreams/pblock_slot_0_sobel_0_partial.bit", 		&bitstreams[0][TSOBEL]);
+	Zycap_Prefetch_Bitstream("/mnt/bitstreams/pblock_slot_0_sortdemo_0_partial.bit", 	&bitstreams[0][TSORT]);
+	Zycap_Prefetch_Bitstream("/mnt/bitstreams/pblock_slot_1_inverse_1_partial.bit", 	&bitstreams[1][TINVERSE]);
+	Zycap_Prefetch_Bitstream("/mnt/bitstreams/pblock_slot_1_sobel_1_partial.bit", 		&bitstreams[1][TSOBEL]);
+	Zycap_Prefetch_Bitstream("/mnt/bitstreams/pblock_slot_1_sortdemo_1_partial.bit", 	&bitstreams[1][TSORT]);
+	Zycap_Prefetch_Bitstream("/mnt/bitstreams/pblock_slot_2_fast_2_partial.bit", 		&bitstreams[2][TFAST]);
+	Zycap_Prefetch_Bitstream("/mnt/bitstreams/pblock_slot_2_mnist_2_partial.bit", 		&bitstreams[2][TMNIST]);
+	Zycap_Prefetch_Bitstream("/mnt/bitstreams/pblock_slot_3_fast_3_partial.bit", 		&bitstreams[3][TFAST]);
+	Zycap_Prefetch_Bitstream("/mnt/bitstreams/pblock_slot_3_mnist_3_partial.bit", 		&bitstreams[3][TMNIST]);
 
 	int bytes_moved = 0;	
 	
@@ -111,7 +137,7 @@ int main(int argc, char **argv)
 	init_msg();
 	
 	clock_gettime(CLOCK_MONOTONIC, &t_start);
-	bytes_moved = Config_PR_Bitstream("/mnt/bitstreams/pblock_slot_0_sortdemo_0_partial.bit");
+	bytes_moved = Zycap_Write_Bitstream(&zycap, &bitstreams[0][TSORT]);
 	clock_gettime(CLOCK_MONOTONIC, &t_end);
 	timespec_diff(&t_start, &t_end, &t_res);
 	printf("Sortdemo_ReconfSlotSmall_0: %3.6f; bytes_moved = %d\n", (double)(t_res.tv_nsec)/1000000000, bytes_moved);
@@ -119,7 +145,7 @@ int main(int argc, char **argv)
 
 
 	clock_gettime(CLOCK_MONOTONIC, &t_start);
-	bytes_moved = Config_PR_Bitstream("/mnt/bitstreams/pblock_slot_1_sobel_1_partial.bit");
+	bytes_moved = Zycap_Write_Bitstream(&zycap, &bitstreams[1][TSOBEL]);
 	clock_gettime(CLOCK_MONOTONIC, &t_end);
 	timespec_diff(&t_start, &t_end, &t_res);
 	printf("Sobel_ReconfSlotSmall_1: %3.6f; bytes_moved = %d;\n", (double)(t_res.tv_nsec)/1000000000, bytes_moved);
@@ -128,13 +154,13 @@ int main(int argc, char **argv)
 
 
 	clock_gettime(CLOCK_MONOTONIC, &t_start);
-	bytes_moved = Config_PR_Bitstream("/mnt/bitstreams/pblock_slot_2_mnist_2_partial.bit");
+	bytes_moved = Zycap_Write_Bitstream(&zycap, &bitstreams[2][TMNIST]);
 	clock_gettime(CLOCK_MONOTONIC, &t_end);
 	timespec_diff(&t_start, &t_end, &t_res);
 	printf("Mnist_ReconfSlotLarge_0: %3.6f; bytes_moved = %d;\n", (double)(t_res.tv_nsec)/1000000000, bytes_moved);
 
 	clock_gettime(CLOCK_MONOTONIC, &t_start);
-	bytes_moved = Config_PR_Bitstream("/mnt/bitstreams/pblock_slot_3_mnist_3_partial.bit");
+	bytes_moved = Zycap_Write_Bitstream(&zycap, &bitstreams[3][TFAST]);
 	clock_gettime(CLOCK_MONOTONIC, &t_end);
 	timespec_diff(&t_start, &t_end, &t_res);
 	printf("Fast_ReconfSlotLarge_1: %3.6f; bytes_moved = %d;\n", (double)(t_res.tv_nsec)/1000000000, bytes_moved);
