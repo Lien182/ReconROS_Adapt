@@ -94,50 +94,59 @@ int main(int argc, char **argv)
 
 	init_zycap();
 
-	Prefetch_PR_Bitstream("bitstreams/Sortdemo_ReconfSlotSmall_0");
-	Prefetch_PR_Bitstream("bitstreams/Sortdemo_ReconfSlotSmall_1");
-	Prefetch_PR_Bitstream("bitstreams/Sobel_ReconfSlotSmall_0");
-	Prefetch_PR_Bitstream("bitstreams/Sobel_ReconfSlotSmall_1");
-	Prefetch_PR_Bitstream("bitstreams/Mnist_ReconfSlotLarge_0");
-	Prefetch_PR_Bitstream("bitstreams/Mnist_ReconfSlotLarge_1");
-	Prefetch_PR_Bitstream("bitstreams/Fast_ReconfSlotLarge_0");
-	Prefetch_PR_Bitstream("bitstreams/Fast_ReconfSlotLarge_1");
+	Prefetch_PR_Bitstream("/mnt/bitstreams/pblock_slot_0_inverse_0_partial.bit");
+	Prefetch_PR_Bitstream("/mnt/bitstreams/pblock_slot_0_sobel_0_partial.bit");
+	Prefetch_PR_Bitstream("/mnt/bitstreams/pblock_slot_0_sortdemo_0_partial.bit");
+	Prefetch_PR_Bitstream("/mnt/bitstreams/pblock_slot_1_inverse_1_partial.bit");
+	Prefetch_PR_Bitstream("/mnt/bitstreams/pblock_slot_1_sobel_1_partial.bit");
+	Prefetch_PR_Bitstream("/mnt/bitstreams/pblock_slot_1_sortdemo_1_partial.bit");
+	Prefetch_PR_Bitstream("/mnt/bitstreams/pblock_slot_2_fast_2_partial.bit");
+	Prefetch_PR_Bitstream("/mnt/bitstreams/pblock_slot_2_mnist_2_partial.bit");
+	Prefetch_PR_Bitstream("/mnt/bitstreams/pblock_slot_3_fast_3_partial.bit");
+	Prefetch_PR_Bitstream("/mnt/bitstreams/pblock_slot_3_mnist_3_partial.bit");
 
+	int bytes_moved = 0;	
 	
 	
-	clock_gettime(CLOCK_MONOTONIC, &t_start);
-	Config_PR_Bitstream("Sortdemo_ReconfSlotSmall_0");
-	clock_gettime(CLOCK_MONOTONIC, &t_end);
-	timespec_diff(&t_start, &t_end, &t_res);
-	printf("Sortdemo_ReconfSlotSmall_0: %3.6f;\n", (double)(t_res.tv_nsec)/1000000000);
-
-	clock_gettime(CLOCK_MONOTONIC, &t_start);
-	Config_PR_Bitstream("Sobel_ReconfSlotSmall_1");
-	clock_gettime(CLOCK_MONOTONIC, &t_end);
-	timespec_diff(&t_start, &t_end, &t_res);
-	printf("Sobel_ReconfSlotSmall_1: %3.6f;\n", (double)(t_res.tv_nsec)/1000000000);
-
-	clock_gettime(CLOCK_MONOTONIC, &t_start);
-	Config_PR_Bitstream("Mnist_ReconfSlotLarge_0");
-	clock_gettime(CLOCK_MONOTONIC, &t_end);
-	timespec_diff(&t_start, &t_end, &t_res);
-	printf("Mnist_ReconfSlotLarge_0: %3.6f;\n", (double)(t_res.tv_nsec)/1000000000);
-
-	clock_gettime(CLOCK_MONOTONIC, &t_start);
-	Config_PR_Bitstream("Fast_ReconfSlotLarge_1");
-	clock_gettime(CLOCK_MONOTONIC, &t_end);
-	timespec_diff(&t_start, &t_end, &t_res);
-	printf("Fast_ReconfSlotLarge_1: %3.6f;\n", (double)(t_res.tv_nsec)/1000000000);
-
 	init_msg();
+	
+	clock_gettime(CLOCK_MONOTONIC, &t_start);
+	bytes_moved = Config_PR_Bitstream("/mnt/bitstreams/pblock_slot_0_sortdemo_0_partial.bit");
+	clock_gettime(CLOCK_MONOTONIC, &t_end);
+	timespec_diff(&t_start, &t_end, &t_res);
+	printf("Sortdemo_ReconfSlotSmall_0: %3.6f; bytes_moved = %d\n", (double)(t_res.tv_nsec)/1000000000, bytes_moved);
 
-	threads[0] = reconos_thread_create_hwt_sortdemo	(rsobel_image_msg_out->data.data);
-	threads[1] = reconos_thread_create_hwt_sobel	(0);
+
+
+	clock_gettime(CLOCK_MONOTONIC, &t_start);
+	bytes_moved = Config_PR_Bitstream("/mnt/bitstreams/pblock_slot_1_sobel_1_partial.bit");
+	clock_gettime(CLOCK_MONOTONIC, &t_end);
+	timespec_diff(&t_start, &t_end, &t_res);
+	printf("Sobel_ReconfSlotSmall_1: %3.6f; bytes_moved = %d;\n", (double)(t_res.tv_nsec)/1000000000, bytes_moved);
+
+
+
+
+	clock_gettime(CLOCK_MONOTONIC, &t_start);
+	bytes_moved = Config_PR_Bitstream("/mnt/bitstreams/pblock_slot_2_mnist_2_partial.bit");
+	clock_gettime(CLOCK_MONOTONIC, &t_end);
+	timespec_diff(&t_start, &t_end, &t_res);
+	printf("Mnist_ReconfSlotLarge_0: %3.6f; bytes_moved = %d;\n", (double)(t_res.tv_nsec)/1000000000, bytes_moved);
+
+	clock_gettime(CLOCK_MONOTONIC, &t_start);
+	bytes_moved = Config_PR_Bitstream("/mnt/bitstreams/pblock_slot_3_mnist_3_partial.bit");
+	clock_gettime(CLOCK_MONOTONIC, &t_end);
+	timespec_diff(&t_start, &t_end, &t_res);
+	printf("Fast_ReconfSlotLarge_1: %3.6f; bytes_moved = %d;\n", (double)(t_res.tv_nsec)/1000000000, bytes_moved);
+
+	
+
+	threads[0] = reconos_thread_create_hwt_sortdemo	(0);
+	threads[1] = reconos_thread_create_hwt_sobel	(rsobel_image_msg_out->data.data);
 	threads[2] = reconos_thread_create_hwt_mnist	(&rmnist_output_msg->data);
 	
-	
-	orbslam_settings.fast_threads[0] = reconos_thread_create_hwt_fast		(0);
-	orbslam_settings.orbslam_thread  = reconos_thread_create_swt_orbslam((void*)&orbslam_settings,0);
+	//orbslam_settings.fast_threads[0] = reconos_thread_create_hwt_fast		(0);
+	//orbslam_settings.orbslam_thread  = reconos_thread_create_swt_orbslam((void*)&orbslam_settings,0);
 
 
 
@@ -146,10 +155,15 @@ int main(int argc, char **argv)
 	uint32_t nMsgSort = 0;
 	uint32_t nMsgMnist = 0;
 
+	
+
+
+
 	while(1)
 	{
 		
 		usleep(200000);
+
 		
 		uint32_t ret = 0;
 
