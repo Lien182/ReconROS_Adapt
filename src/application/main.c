@@ -159,11 +159,11 @@ int main(int argc, char **argv)
 	timespec_diff(&t_start, &t_end, &t_res);
 	printf("Mnist_ReconfSlotLarge_0: %3.6f; bytes_moved = %d;\n", (double)(t_res.tv_nsec)/1000000000, bytes_moved);
 
-	clock_gettime(CLOCK_MONOTONIC, &t_start);
-	bytes_moved = Zycap_Write_Bitstream(&zycap, &bitstreams[3][TFAST]);
-	clock_gettime(CLOCK_MONOTONIC, &t_end);
-	timespec_diff(&t_start, &t_end, &t_res);
-	printf("Fast_ReconfSlotLarge_1: %3.6f; bytes_moved = %d;\n", (double)(t_res.tv_nsec)/1000000000, bytes_moved);
+	//clock_gettime(CLOCK_MONOTONIC, &t_start);
+	//bytes_moved = Zycap_Write_Bitstream(&zycap, &bitstreams[3][TFAST]);
+	//clock_gettime(CLOCK_MONOTONIC, &t_end);
+	//timespec_diff(&t_start, &t_end, &t_res);
+	//printf("Fast_ReconfSlotLarge_1: %3.6f; bytes_moved = %d;\n", (double)(t_res.tv_nsec)/1000000000, bytes_moved);
 
 	
 
