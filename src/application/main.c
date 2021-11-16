@@ -71,7 +71,7 @@ void timespec_diff(struct timespec *start, struct timespec *stop,
 int main(int argc, char **argv) 
 {
 
-	struct timespec t_start, t_end, t_res;
+
 	uint32_t nThreads = 0;
 	
 	if(argc != 4)
@@ -100,7 +100,6 @@ int main(int argc, char **argv)
 
 	uint32_t inverse_result;
 	struct reconos_thread* threads[8];
-	t_zycap zycap;
 
 
 	t_bitstream bitstreams[NSLOTS][NTHREADS];
@@ -116,9 +115,6 @@ int main(int argc, char **argv)
 		}
 	}
 
-	Zycap_Init(&zycap);
-
-	
 
 	Zycap_Prefetch_Bitstream("/mnt/bitstreams/pblock_slot_0_inverse_0_partial.bit", 	&bitstreams[0][TINVERSE]);
 	Zycap_Prefetch_Bitstream("/mnt/bitstreams/pblock_slot_0_sobel_0_partial.bit", 		&bitstreams[0][TSOBEL]);
@@ -133,38 +129,6 @@ int main(int argc, char **argv)
 
 	int bytes_moved = 0;	
 	
-	
-	init_msg();
-	
-	clock_gettime(CLOCK_MONOTONIC, &t_start);
-	bytes_moved = Zycap_Write_Bitstream(&zycap, &bitstreams[0][TSORT]);
-	clock_gettime(CLOCK_MONOTONIC, &t_end);
-	timespec_diff(&t_start, &t_end, &t_res);
-	printf("Sortdemo_ReconfSlotSmall_0: %3.6f; bytes_moved = %d\n", (double)(t_res.tv_nsec)/1000000000, bytes_moved);
-
-
-
-	clock_gettime(CLOCK_MONOTONIC, &t_start);
-	bytes_moved = Zycap_Write_Bitstream(&zycap, &bitstreams[1][TSOBEL]);
-	clock_gettime(CLOCK_MONOTONIC, &t_end);
-	timespec_diff(&t_start, &t_end, &t_res);
-	printf("Sobel_ReconfSlotSmall_1: %3.6f; bytes_moved = %d;\n", (double)(t_res.tv_nsec)/1000000000, bytes_moved);
-
-
-
-
-	clock_gettime(CLOCK_MONOTONIC, &t_start);
-	bytes_moved = Zycap_Write_Bitstream(&zycap, &bitstreams[2][TMNIST]);
-	clock_gettime(CLOCK_MONOTONIC, &t_end);
-	timespec_diff(&t_start, &t_end, &t_res);
-	printf("Mnist_ReconfSlotLarge_0: %3.6f; bytes_moved = %d;\n", (double)(t_res.tv_nsec)/1000000000, bytes_moved);
-
-	//clock_gettime(CLOCK_MONOTONIC, &t_start);
-	//bytes_moved = Zycap_Write_Bitstream(&zycap, &bitstreams[3][TFAST]);
-	//clock_gettime(CLOCK_MONOTONIC, &t_end);
-	//timespec_diff(&t_start, &t_end, &t_res);
-	//printf("Fast_ReconfSlotLarge_1: %3.6f; bytes_moved = %d;\n", (double)(t_res.tv_nsec)/1000000000, bytes_moved);
-
 	
 
 	threads[0] = reconos_thread_create_hwt_sortdemo	(0);
