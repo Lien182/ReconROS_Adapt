@@ -1,7 +1,6 @@
 #include <stdint.h>
-#include <zycap_linux.h>
-
-#include "queue.h"
+#include <pthread.h>
+#include "zycap_linux.h"
 
 #include "hw_executor.h"
 #include "sw_executor.h"
@@ -19,6 +18,7 @@ typedef struct
     pthread_mutex_t         object_lock;
     void *                  pReconROSPrimitive;
     enum ReconROS_primitive eReconROSPrimitive;
+    void *                  pReconROSMsgPrimitive;
 
     uint32_t                nSlotMask;
     t_bitstream *           bitstreams;
@@ -34,7 +34,7 @@ typedef struct
 }t_readylistelement;
 
 typedef struct
-{
+{   char *                      pBitstreamDir;
     t_reconros_hwexecutor *     pExecutorsHw;
     uint32_t                    nExecutorsHw;
     t_reconros_swexecutor *     pExecutorsSw;
@@ -45,11 +45,11 @@ typedef struct
     t_callback_list_element *  alRosTmr;
     uint32_t                   alRosTmrCnt;
     t_callback_list_element *  alRosSub;
-    uint32_t                   alRosTmrSub;
+    uint32_t                   alRosSubCnt;
     t_callback_list_element *  alRosSrv;
-    uint32_t                   alRosTmrSrv;
+    uint32_t                   alRosSrvCnt;
     t_callback_list_element *  alRosClt;
-    uint32_t                   alRosTmrClt;
+    uint32_t                   alRosCltCnt;
 
 }t_reconros_executor;
 

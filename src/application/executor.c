@@ -1,11 +1,24 @@
 #include "executor.h"
 
+#include <stdlib.h>
+#include <stdio.h>
 
-int ReconROS_Executor_Init(t_reconros_executor * reconros_executor, uint32_t nSlots, uint32_t nSwThreads)
+
+#include "ros_timer.h"
+#include "ros_sub.h"
+#include "ros_service_server.h"
+#include "ros_service_client.h"
+
+int ReconROS_Executor_Init(t_reconros_executor * reconros_executor, uint32_t nSlots, uint32_t nSwThreads, char * bitstream_dir)
 {
     reconros_executor->nExecutorsHw = nSlots;
     reconros_executor->nExecutorsSw = nSwThreads;
 
+    reconros_executor->pBitstreamDir = malloc(strlen(bitstream_dir));
+    if(reconros_executor->pBitstreamDir == 0)
+        return -1;
+
+    strcpy(reconros_executor->pBitstreamDir, bitstream_dir);
 
     if(reconros_executor->pExecutorsHw > 0)
     {
@@ -77,31 +90,58 @@ int ReconROS_Executor_Spin(t_reconros_executor * reconros_executor)
 
 int ReconROS_Executor_Add_Callback(t_reconros_executor * reconros_executor, t_callback * callback)
 {
-    return 0;
+    return 1;
 }
 
 
 int ReconROS_Executor_GetNextTimer(t_reconros_executor * reconros_executor)
 {
-    
+    return 1;
 }
 
-int ReconROS_Executor_GetNextSubscriber(t_reconros_executor * reconros_executor)
+int ReconROS_Executor_GetNextSubscriber(t_reconros_executor * reconros_executor, t_callback_list_element ** element)
 {
     for(int i = 0; i < reconros_executor->alRosSubCnt; i++)
     {
-        subscriber_try_take((struct t_ros_subscriber*)reconros_executor->alRosSub->pReconROSPrimitive)
+        if(pthread_mutex_trylock(&(reconros_executor->alRosSub[i].object_lock)) == 0) // check if resource is free
+        {
+            
+            if(ros_subscriber_message_try_take((struct t_ros_subscriber*)(reconros_executor->alRosSub[i].pReconROSPrimitive), reconros_executor->alRosSub[i].pReconROSMsgPrimitive ) == 0) // if no 
+            {
+                //we found a subscriber with a new message;
+                *element = &reconros_executor->alRosSub[i];
+                return 0;
+            }
+            else
+            {
+                pthread_mutex_unlock(&(reconros_executor->alRosSub->object_lock));            
+            }
+
+        }
+        else 
+        {
+            continue;
+        }
+
     }
+
+    return 1;
+}
+
+int ReconROS_Executor_ReleaseSubscriber(t_reconros_executor * reconros_executor, t_callback_list_element ** element)
+{
+    pthread_mutex_unlock(&(*element)->object_lock);   
+    return 1;
 }
 
 int ReconROS_Executor_GetNextService(t_reconros_executor * reconros_executor)
 {
-    
+    return 1;
 }
 
 int ReconROS_Executor_GetNextClient(t_reconros_executor * reconros_executor)
 {
-    
+    return 1;
 }
 
 

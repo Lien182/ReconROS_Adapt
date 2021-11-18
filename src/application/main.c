@@ -22,7 +22,7 @@
 
 #include "main.h"
 
-#include "zycap_linux.h"
+#include "executor.h"
 
 
 #define NSLOTS 4
@@ -52,27 +52,11 @@ void init_msg(void)
 
 }
 
-
-void timespec_diff(struct timespec *start, struct timespec *stop,
-                   struct timespec *result)
-{
-    if ((stop->tv_nsec - start->tv_nsec) < 0) {
-        result->tv_sec = stop->tv_sec - start->tv_sec - 1;
-        result->tv_nsec = stop->tv_nsec - start->tv_nsec + 1000000000;
-    } else {
-        result->tv_sec = stop->tv_sec - start->tv_sec;
-        result->tv_nsec = stop->tv_nsec - start->tv_nsec;
-    }
-
-    return;
-}
-
-
 int main(int argc, char **argv) 
 {
 
 
-	uint32_t nThreads = 0;
+	t_reconros_executor reconros_executor;
 	
 	if(argc != 4)
     {
@@ -82,25 +66,24 @@ int main(int argc, char **argv)
 
 	
 	//parse orbslam settings
-	t_orbslam_settings orbslam_settings;
+	// t_orbslam_settings orbslam_settings;
 	
-	if(strcmp(argv[3], "hw") == 0)
-    {
-        orbslam_settings.bUseHw = 1;
-    }
-    else
-    {
-        orbslam_settings.bUseHw = 0;
-    }
+	// if(strcmp(argv[3], "hw") == 0)
+    // {
+    //     orbslam_settings.bUseHw = 1;
+    // }
+    // else
+    // {
+    //     orbslam_settings.bUseHw = 0;
+    // }
 
 
 
 	reconos_init();
 	reconos_app_init();
 
-	uint32_t inverse_result;
-	struct reconos_thread* threads[8];
 
+	ReconROS_Executor_Init(&reconros_executor, 4, 2, "/mnt/bitstreams/");
 
 	t_bitstream bitstreams[NSLOTS][NTHREADS];
 
@@ -127,8 +110,6 @@ int main(int argc, char **argv)
 	Zycap_Prefetch_Bitstream("/mnt/bitstreams/pblock_slot_3_fast_3_partial.bit", 		&bitstreams[3][TFAST]);
 	Zycap_Prefetch_Bitstream("/mnt/bitstreams/pblock_slot_3_mnist_3_partial.bit", 		&bitstreams[3][TMNIST]);
 
-	int bytes_moved = 0;	
-	
 	
 
 	threads[0] = reconos_thread_create_hwt_sortdemo	(0);
@@ -139,34 +120,11 @@ int main(int argc, char **argv)
 	//orbslam_settings.orbslam_thread  = reconos_thread_create_swt_orbslam((void*)&orbslam_settings,0);
 
 
-
-	uint32_t count = 0;
-	uint32_t nMsgSobel = 0;
-	uint32_t nMsgSort = 0;
-	uint32_t nMsgMnist = 0;
-
 	
 
+	ReconROS_Executor_Spin();
 
-
-	while(1)
-	{
-		
-		usleep(200000);
-
-		
-		uint32_t ret = 0;
-
-		ret |= rcl_subscription_get_unread_count(&rsobel_subdata->sub, &nMsgSobel);
-		ret |= rcl_service_get_unread_requests(&rsort_srv->service, 	&nMsgSort);
-		ret |= rcl_subscription_get_unread_count(&rmnist_subdata->sub, &nMsgMnist);
-		
-		
-		printf("Unread requests: ret = %d \n", ret);
-		printf("Sobel=%06d,Mnist=%06d,Sort=%06d \n", nMsgSobel ,nMsgMnist, nMsgSort);
-
-	}
-
+	
 	reconos_app_cleanup();
 	reconos_cleanup();
 
