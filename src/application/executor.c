@@ -88,8 +88,17 @@ int ReconROS_Executor_Spin(t_reconros_executor * reconros_executor)
 }
 
 
-int ReconROS_Executor_Add_Callback(t_reconros_executor * reconros_executor, t_callback * callback)
+int ReconROS_Executor_Add_SW_Callback(t_reconros_executor * reconros_executor, char * name )
 {
+
+    reconos_thread_create_hwt_sortdemo	(0);
+	threads[1] = reconos_thread_create_hwt_sobel	(rsobel_image_msg_out->data.data);
+	threads[2] = reconos_thread_create_hwt_mnist	(&rmnist_output_msg->data);
+	
+	//orbslam_settings.fast_threads[0] = reconos_thread_create_hwt_fast		(0);
+	//orbslam_settings.orbslam_thread  = reconos_thread_create_swt_orbslam((void*)&orbslam_settings,0);
+
+
     return 1;
 }
 
@@ -99,36 +108,40 @@ int ReconROS_Executor_GetNextTimer(t_reconros_executor * reconros_executor)
     return 1;
 }
 
-int ReconROS_Executor_GetNextSubscriber(t_reconros_executor * reconros_executor, t_callback_list_element ** element)
+int ReconROS_Executor_GetNextSubscriber(t_reconros_executor * reconros_executor, t_callback_list_element ** element, uint32_t u32SlotMask) // if slotmask is 0, return sw
 {
     for(int i = 0; i < reconros_executor->alRosSubCnt; i++)
     {
-        if(pthread_mutex_trylock(&(reconros_executor->alRosSub[i].object_lock)) == 0) // check if resource is free
+        if((u32SlotMask == 0 ) || (reconros_executor->alRosSub[i].nSlotMask & u32SlotMask))
         {
-            
-            if(ros_subscriber_message_try_take((struct t_ros_subscriber*)(reconros_executor->alRosSub[i].pReconROSPrimitive), reconros_executor->alRosSub[i].pReconROSMsgPrimitive ) == 0) // if no 
+            if(pthread_mutex_trylock(&(reconros_executor->alRosSub[i].object_lock)) == 0) // check if resource is free
             {
-                //we found a subscriber with a new message;
-                *element = &reconros_executor->alRosSub[i];
-                return 0;
-            }
-            else
-            {
-                pthread_mutex_unlock(&(reconros_executor->alRosSub->object_lock));            
-            }
+                
+                if(ros_subscriber_message_try_take((struct t_ros_subscriber*)(reconros_executor->alRosSub[i].pReconROSPrimitive), reconros_executor->alRosSub[i].pReconROSMsgPrimitive ) == 0) // if no 
+                {
+                    //we found a subscriber with a new message;
+                    *element = &reconros_executor->alRosSub[i];
+                    return 0;
+                }
+                else
+                {
+                    pthread_mutex_unlock(&(reconros_executor->alRosSub->object_lock));            
+                }
 
+            }
+            else 
+            {
+                continue;
+            }
         }
-        else 
-        {
-            continue;
-        }
+       
 
     }
 
     return 1;
 }
 
-int ReconROS_Executor_ReleaseSubscriber(t_reconros_executor * reconros_executor, t_callback_list_element ** element)
+int ReconROS_Executor_ReleaseSubscriber(t_reconros_executor * reconros_executor, t_callback_list_element ** element, uint32_t u32SlotMask)
 {
     pthread_mutex_unlock(&(*element)->object_lock);   
     return 1;
@@ -139,11 +152,22 @@ int ReconROS_Executor_GetNextService(t_reconros_executor * reconros_executor)
     return 1;
 }
 
+int ReconROS_Executor_ReleaseService(t_reconros_executor * reconros_executor, t_callback_list_element ** element, uint32_t u32SlotMask)
+{
+    pthread_mutex_unlock(&(*element)->object_lock);   
+    return 1;
+}
+
 int ReconROS_Executor_GetNextClient(t_reconros_executor * reconros_executor)
 {
     return 1;
 }
 
+int ReconROS_Executor_ReleaseClient(t_reconros_executor * reconros_executor, t_callback_list_element ** element, uint32_t u32SlotMask)
+{
+    pthread_mutex_unlock(&(*element)->object_lock);   
+    return 1;
+}
 
 
 int ReconROS_GetHWCallback(t_reconros_executor * reconros_executor, uint32_t SlotMask, t_bitstream ** pBitstream, void ** ppMessage)
