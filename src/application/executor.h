@@ -18,11 +18,13 @@ typedef struct
     pthread_mutex_t         object_lock;
     void *                  pReconROSPrimitive;
     enum ReconROS_primitive eReconROSPrimitive;
-    void *                  pReconROSMsgPrimitive;
+    void *                  pReconROSResultPrimitive;
 
+    struct reconos_thread*  pHWthread;
     uint32_t                nSlotMask;
     t_bitstream *           bitstreams;
 
+    struct reconos_thread*  pSWthread;
     void *                  function_ptr;
     void *                  args;
 }t_callback_list_element;
@@ -41,6 +43,8 @@ typedef struct
     uint32_t                    nExecutorsSw;
 
     t_zycap                     Zycap;    
+
+    uint32_t                    nCallbackIdCnt;
 
     t_callback_list_element *  alRosTmr;
     uint32_t                   alRosTmrCnt;

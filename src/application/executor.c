@@ -88,15 +88,164 @@ int ReconROS_Executor_Spin(t_reconros_executor * reconros_executor)
 }
 
 
-int ReconROS_Executor_Add_SW_Callback(t_reconros_executor * reconros_executor, char * name )
+int ReconROS_Executor_Add_HW_Callback(t_reconros_executor * reconros_executor, char * CallbackName, uint32_t nSlotMask, enum ReconROS_primitive primitive, void * object, void * object_result, void * resources, int resource_cnt )
 {
+    t_callback_list_element * pCallback;
 
-    reconos_thread_create_hwt_sortdemo	(0);
-	threads[1] = reconos_thread_create_hwt_sobel	(rsobel_image_msg_out->data.data);
-	threads[2] = reconos_thread_create_hwt_mnist	(&rmnist_output_msg->data);
-	
-	//orbslam_settings.fast_threads[0] = reconos_thread_create_hwt_fast		(0);
-	//orbslam_settings.orbslam_thread  = reconos_thread_create_swt_orbslam((void*)&orbslam_settings,0);
+    if(primitive == ReconROS_primitive.ReconROS_TMR)
+    {
+        pCallback = &(reconros_executor->alRosTmr[reconros_executor->alRosTmrCnt]);
+        reconros_executor->alRosTmrCnt++;
+    }
+    else if(primitive == ReconROS_primitive.ReconROS_SUB)
+    {
+        pCallback = &(reconros_executor->alRosSub[reconros_executor->alRosSubCnt]);
+        reconros_executor->alRosSubCnt++;
+    }
+    else if(primitive == ReconROS_primitive.ReconROS_SRV)
+    {
+        pCallback = &(reconros_executor->alRosSvr[reconros_executor->alRosSvrCnt]);
+        reconros_executor->alRosSvrCnt++;
+    }
+    else (primitive == ReconROS_primitive.ReconROS_CLT)
+    {
+        pCallback = &(reconros_executor->alRosClt[reconros_executor->alRosCltCnt]);
+        reconros_executor->alRosCltCnt++;
+    }
+
+    int nSlotCnt = 0;
+    int *  slots = malloc(reconros_executor->nExecutorsHw);
+
+    for(int i = 0; i < reconros_executor->nExecutorsHw; i++)
+    {
+        if(nSlotMask & (1<<i))
+        {
+            slots[nSlotCnt] = i
+            nSlotCnt++;
+        }
+    }
+
+
+    pCallback->bitstreams = malloc(sizeof(t_bitstreams) * nSlotCnt);
+    if(!pCallback->bitstreams)
+        return -1;
+
+    char buf[255];
+
+    for(int i = 0; i < nSlotCnt; i++)
+    {
+        sprintf(buf, "%s/pblock_slot_%d_%s_%d_partial.bit", reconros_executor->pBitstreamDir, slots[i], CallbackName, slots[i]);
+        printf("%s", buf);
+        Zycap_Prefetch_Bitstream(buf, &pCallback->bitstreams[i]);
+    }
+
+    pCallback->pReconROSPrimitive = object;
+    pCallback->eReconROSPrimitive = primitive;
+    pCallback->pReconROSResultPrimitive = object_result;
+    pCallback->nSlotMask = nSlotMask;
+    
+
+    pCallback->callback_id = reconros_executor->nCallbackIdCnt;
+    reconros_executor->nCallbackIdCnt++;
+    pthread_mutex_init(&reconros_executor->object_lock, 0);
+
+
+
+
+    pCallback->pHWthread = (struct reconos_thread *)malloc(sizeof(struct reconos_thread));
+	if (!pCallback->pHWthread) {
+		panic("[reconos-core] ERROR: failed to allocate memory for thread\n");
+	}
+
+
+    
+	reconos_thread_init(pCallback->pHWthread, name, 0);
+	reconos_thread_setinitdata(pCallback->pHWthread, 0); //later set: object ptr
+	reconos_thread_setallowedslots(pCallback->pHWthread, &slot, 1);
+	reconos_thread_setresourcepointers(pCallback->pHWthread, resources, resource_cnt);
+	reconos_thread_create_auto(pCallback->pHWthread, RECONOS_THREAD_HW);
+
+
+    return 1;
+}
+
+
+int ReconROS_Executor_Add_SW_Callback(t_reconros_executor * reconros_executor, char * CallbackName, uint32_t nSlotMask, enum ReconROS_primitive primitive, void * object, void * object_result, void * resources, int resource_cnt )
+{
+    t_callback_list_element * pCallback;
+
+    if(primitive == ReconROS_primitive.ReconROS_TMR)
+    {
+        pCallback = &(reconros_executor->alRosTmr[reconros_executor->alRosTmrCnt]);
+        reconros_executor->alRosTmrCnt++;
+    }
+    else if(primitive == ReconROS_primitive.ReconROS_SUB)
+    {
+        pCallback = &(reconros_executor->alRosSub[reconros_executor->alRosSubCnt]);
+        reconros_executor->alRosSubCnt++;
+    }
+    else if(primitive == ReconROS_primitive.ReconROS_SRV)
+    {
+        pCallback = &(reconros_executor->alRosSvr[reconros_executor->alRosSvrCnt]);
+        reconros_executor->alRosSvrCnt++;
+    }
+    else (primitive == ReconROS_primitive.ReconROS_CLT)
+    {
+        pCallback = &(reconros_executor->alRosClt[reconros_executor->alRosCltCnt]);
+        reconros_executor->alRosCltCnt++;
+    }
+
+    int nSlotCnt = 0;
+    int *  slots = malloc(reconros_executor->nExecutorsHw);
+
+    for(int i = 0; i < reconros_executor->nExecutorsHw; i++)
+    {
+        if(nSlotMask & (1<<i))
+        {
+            slots[nSlotCnt] = i
+            nSlotCnt++;
+        }
+    }
+
+
+    pCallback->bitstreams = malloc(sizeof(t_bitstreams) * nSlotCnt);
+    if(!pCallback->bitstreams)
+        return -1;
+
+    char buf[255];
+
+    for(int i = 0; i < nSlotCnt; i++)
+    {
+        sprintf(buf, "%s/pblock_slot_%d_%s_%d_partial.bit", reconros_executor->pBitstreamDir, slots[i], CallbackName, slots[i]);
+        printf("%s", buf);
+        Zycap_Prefetch_Bitstream(buf, &pCallback->bitstreams[i]);
+    }
+
+    pCallback->pReconROSPrimitive = object;
+    pCallback->eReconROSPrimitive = primitive;
+    pCallback->pReconROSResultPrimitive = object_result;
+    pCallback->nSlotMask = nSlotMask;
+    
+
+    pCallback->callback_id = reconros_executor->nCallbackIdCnt;
+    reconros_executor->nCallbackIdCnt++;
+    pthread_mutex_init(&reconros_executor->object_lock, 0);
+
+
+
+
+    pCallback->pHWthread = (struct reconos_thread *)malloc(sizeof(struct reconos_thread));
+	if (!pCallback->pHWthread) {
+		panic("[reconos-core] ERROR: failed to allocate memory for thread\n");
+	}
+
+
+    
+	reconos_thread_init(pCallback->pHWthread, name, 0);
+	reconos_thread_setinitdata(pCallback->pHWthread, 0); //later set: object ptr
+	reconos_thread_setallowedslots(pCallback->pHWthread, &slot, 1);
+	reconos_thread_setresourcepointers(pCallback->pHWthread, resources, resource_cnt);
+	reconos_thread_create_auto(pCallback->pHWthread, RECONOS_THREAD_HW);
 
 
     return 1;
