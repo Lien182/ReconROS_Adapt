@@ -32,8 +32,12 @@ void bubblesort(uint32_t *data, int data_count) {
 
 void *rt_sortdemo(void *data) {
 	
-	while (1) {
-		
-		sleep(109);
-	}
+	sorter_msgs__srv__Sort_Request * req = (sorter_msgs__srv__Sort_Request*)data;
+
+	bubblesort(req->unsorted.data, BLOCK_SIZE);
+
+	rsort_sort_srv_res->sorted = req->unsorted;
+
+	ROS_SERVICESERVER_SEND_RESPONSE(rsort_srv,rsort_sort_srv_res);
+
 }

@@ -38,11 +38,11 @@ int main(int argc, char **argv)
 
 	t_reconros_executor reconros_executor;
 	
-	if(argc != 4)
-    {
-        printf("Usage: ./reconfadapt (orb)path_to_vocabulary (orb)path_to_settings (orb)<hw/sw>\n");
-        return 1;
-    }
+	// if(argc != 4)
+    // {
+    //     printf("Usage: ./reconfadapt (orb)path_to_vocabulary (orb)path_to_settings (orb)<hw/sw>\n");
+    //     return 1;
+    // }
 
 	
 	//parse orbslam settings
@@ -62,13 +62,16 @@ int main(int argc, char **argv)
 	reconos_init();
 	reconos_app_init();
 
-
-	ReconROS_Executor_Init(&reconros_executor, 4, 2, "/mnt/bitstreams/");
-	ReconROS_Executor_Add_SW_Callback(&reconros_executor, "sortdemo", &rt_sortdemo, ReconROS_SRV, rsort_srv, rsort_sort_srv_req, resources_sortdemo, 4);
+	printf("ReconROS init done \n");
 
 
+	ReconROS_Executor_Init(&reconros_executor, 0, 1, "/mnt/bitstreams/");
+	printf("ReconROS_Executor init done \n");
+	ReconROS_Executor_Add_SW_Callback(&reconros_executor, "sortdemo", rt_sortdemo, ReconROS_SRV, rsort_srv, rsort_sort_srv_req, resources_sortdemo, 4);
+	printf("ReconROS Callback added\n");
 
-	ReconROS_Executor_Spin();
+
+	ReconROS_Executor_Spin(&reconros_executor);
 
 	
 	reconos_app_cleanup();

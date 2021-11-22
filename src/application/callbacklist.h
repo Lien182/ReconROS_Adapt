@@ -35,7 +35,7 @@ typedef struct
     uint32_t                    alRosCltCnt;
 }t_callback_lists;
 
-
+int Callbacklist_Init(t_callback_lists * callback_lists);
 
 int Callbacklist_GetHWCallback(t_callback_lists * callback_lists, uint32_t nSlotMask, t_bitstream ** pBitstream, void ** ppMessage);
 

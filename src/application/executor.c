@@ -22,6 +22,7 @@ int ReconROS_Executor_Init(t_reconros_executor * reconros_executor, uint32_t nSl
         reconros_executor->pExecutorsHw = malloc(sizeof(t_reconros_hwexecutor) * nSlots);
         if(reconros_executor->pExecutorsHw == 0)
         {
+            printf("[ReconROS_Executor_Init] ERROR: failed to allocate memory for pExecutorsHw\n");
             return -1;
         }
 
@@ -34,15 +35,20 @@ int ReconROS_Executor_Init(t_reconros_executor * reconros_executor, uint32_t nSl
 
     if(reconros_executor->nExecutorsSw > 0)
     {
-        reconros_executor->pExecutorsSw = malloc(sizeof(t_reconros_swexecutor) * nSlots);
+        reconros_executor->pExecutorsSw = malloc(sizeof(t_reconros_swexecutor) * nSwThreads);
         if(reconros_executor->pExecutorsSw == 0)
         {
+            printf("[ReconROS_Executor_Init] ERROR: failed to allocate memory for pExecutorsSw\n");
             return -1;
         }
 
         for(int i = 0; i < reconros_executor->nExecutorsSw; i++)
         {
-            ReconROS_SWExecutor_Init(&(reconros_executor->pExecutorsSw)[i], i);
+            if(ReconROS_SWExecutor_Init(&(reconros_executor->pExecutorsSw)[i], &reconros_executor->CallbackLists, i) != 0)
+            {
+                printf("[ReconROS_Executor_Init] ReconROS_SWExecutor_Init (%d) failed \n", i);
+                return -1;
+            }
         }
     }
 

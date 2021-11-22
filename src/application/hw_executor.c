@@ -45,6 +45,9 @@ int ReconROS_HWExecutor_Init(t_reconros_hwexecutor * reconros_hwexecutor, t_zyca
 
 int ReconROS_HWExecutor_Spin(t_reconros_hwexecutor * reconros_hwexecutor)
 {
+
+	reconros_hwexecutor->bRun = 1UL;
+
 	if(pthread_create(&reconros_hwexecutor->ptAgent, 0, ReconROS_HWExecutor_Agent, (void*)reconros_hwexecutor) != 0)
 	{
 		return -1;
