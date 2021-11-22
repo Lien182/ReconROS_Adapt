@@ -1,4 +1,5 @@
 #include "sw_executor.h"
+#include "executor.h"
 
 
 static void * ReconROS_SWExecutor_Agent(void * args)
@@ -9,7 +10,7 @@ static void * ReconROS_SWExecutor_Agent(void * args)
 
 	while(reconros_swexecutor->bRun)
 	{
-
+		;//ReconROS_GetSWCallback()
 	}
 
 
@@ -20,9 +21,9 @@ static void * ReconROS_SWExecutor_Agent(void * args)
 
 
 
-void ReconROS_SWExecutor_Init(t_reconros_swexecutor * reconros_swexecutor, int id)
+void ReconROS_SWExecutor_Init(t_reconros_swexecutor * reconros_swexecutor,  int id)
 {
-
+	reconros_swexecutor->id = id;
 }
 
 int ReconROS_SWExecutor_Spin(t_reconros_swexecutor * reconros_swexecutor)
@@ -33,5 +34,12 @@ int ReconROS_SWExecutor_Spin(t_reconros_swexecutor * reconros_swexecutor)
 		return -1;
     }
 
+	return 0;
+}
+
+int ReconROS_SWExecutor_Join(t_reconros_swexecutor * reconros_swexecutor)
+{
+	uint32_t ret_value;
+	pthread_join(reconros_swexecutor->ptAgent, (void**)&ret_value);
 	return 0;
 }

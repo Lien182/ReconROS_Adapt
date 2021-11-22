@@ -4,37 +4,13 @@
 
 #include "reconos.h"
 #include "reconos_app.h"
-#include "mbox.h"
-#include "timer.h"
-
-#include "utils.h"
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <math.h>
-#include <limits.h>
-
-#include <sys/stat.h>
-#include <fcntl.h>
-#include <unistd.h>
-#include <signal.h>
 
 #include "main.h"
-
 #include "executor.h"
-
-
-#define NSLOTS 4
-#define NTHREADS 5
-
-#define TINVERSE 	0
-#define TSORT		1
-#define TSOBEL		2
-#define TMNIST		3
-#define TFAST		4
-
-
 
 void init_msg(void)
 {
@@ -49,8 +25,12 @@ void init_msg(void)
   	rsobel_image_msg_out->data.data = malloc(IMAGE_HEIGHT*IMAGE_WIDTH*3);
 	rsobel_image_msg_out->data.size = IMAGE_HEIGHT*IMAGE_WIDTH*3;
 	rsobel_image_msg_out->data.capacity = IMAGE_HEIGHT*IMAGE_WIDTH*3;
-
 }
+
+
+extern void *rt_sortdemo(void *data);
+extern struct reconos_resource *resources_sortdemo[];
+
 
 int main(int argc, char **argv) 
 {
@@ -84,43 +64,9 @@ int main(int argc, char **argv)
 
 
 	ReconROS_Executor_Init(&reconros_executor, 4, 2, "/mnt/bitstreams/");
-
-	t_bitstream bitstreams[NSLOTS][NTHREADS];
-
-
-	for(int i = 0; i < NSLOTS; i++)
-	{
-		for( int j = 0; j < NTHREADS; j++)
-		{
-			bitstreams[i][j].data = 0;
-			bitstreams[i][j].size = 0;
-			
-		}
-	}
+	ReconROS_Executor_Add_SW_Callback(&reconros_executor, "sortdemo", &rt_sortdemo, ReconROS_SRV, rsort_srv, rsort_sort_srv_req, resources_sortdemo, 4);
 
 
-	Zycap_Prefetch_Bitstream("/mnt/bitstreams/pblock_slot_0_inverse_0_partial.bit", 	&bitstreams[0][TINVERSE]);
-	Zycap_Prefetch_Bitstream("/mnt/bitstreams/pblock_slot_0_sobel_0_partial.bit", 		&bitstreams[0][TSOBEL]);
-	Zycap_Prefetch_Bitstream("/mnt/bitstreams/pblock_slot_0_sortdemo_0_partial.bit", 	&bitstreams[0][TSORT]);
-	Zycap_Prefetch_Bitstream("/mnt/bitstreams/pblock_slot_1_inverse_1_partial.bit", 	&bitstreams[1][TINVERSE]);
-	Zycap_Prefetch_Bitstream("/mnt/bitstreams/pblock_slot_1_sobel_1_partial.bit", 		&bitstreams[1][TSOBEL]);
-	Zycap_Prefetch_Bitstream("/mnt/bitstreams/pblock_slot_1_sortdemo_1_partial.bit", 	&bitstreams[1][TSORT]);
-	Zycap_Prefetch_Bitstream("/mnt/bitstreams/pblock_slot_2_fast_2_partial.bit", 		&bitstreams[2][TFAST]);
-	Zycap_Prefetch_Bitstream("/mnt/bitstreams/pblock_slot_2_mnist_2_partial.bit", 		&bitstreams[2][TMNIST]);
-	Zycap_Prefetch_Bitstream("/mnt/bitstreams/pblock_slot_3_fast_3_partial.bit", 		&bitstreams[3][TFAST]);
-	Zycap_Prefetch_Bitstream("/mnt/bitstreams/pblock_slot_3_mnist_3_partial.bit", 		&bitstreams[3][TMNIST]);
-
-	
-
-	threads[0] = reconos_thread_create_hwt_sortdemo	(0);
-	threads[1] = reconos_thread_create_hwt_sobel	(rsobel_image_msg_out->data.data);
-	threads[2] = reconos_thread_create_hwt_mnist	(&rmnist_output_msg->data);
-	
-	//orbslam_settings.fast_threads[0] = reconos_thread_create_hwt_fast		(0);
-	//orbslam_settings.orbslam_thread  = reconos_thread_create_swt_orbslam((void*)&orbslam_settings,0);
-
-
-	
 
 	ReconROS_Executor_Spin();
 

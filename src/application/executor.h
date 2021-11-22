@@ -1,33 +1,13 @@
+#ifndef EXECUTOR_H
+#define EXECUTOR_H
+
 #include <stdint.h>
 #include <pthread.h>
 #include "zycap_linux.h"
 
+#include "callbacklist.h"
 #include "hw_executor.h"
 #include "sw_executor.h"
-
-#define RECONROS_EXECUTOR_MAX_NR_OF_OBJECTS 10
-
-
-
-enum ReconROS_primitive{ ReconROS_TMR = 0, ReconROS_SUB = 1, ReconROS_SRV = 2, ReconROS_CLT = 3 };
-
-
-typedef struct 
-{
-    uint32_t                callback_id;
-    pthread_mutex_t         object_lock;
-    void *                  pReconROSPrimitive;
-    enum ReconROS_primitive eReconROSPrimitive;
-    void *                  pReconROSResultPrimitive;
-
-    struct reconos_thread*  pHWthread;
-    uint32_t                nSlotMask;
-    t_bitstream *           bitstreams;
-
-    struct reconos_thread*  pSWthread;
-    void *                  function_ptr;
-    void *                  args;
-}t_callback_list_element;
 
 typedef struct 
 {
@@ -46,14 +26,7 @@ typedef struct
 
     uint32_t                    nCallbackIdCnt;
 
-    t_callback_list_element *  alRosTmr;
-    uint32_t                   alRosTmrCnt;
-    t_callback_list_element *  alRosSub;
-    uint32_t                   alRosSubCnt;
-    t_callback_list_element *  alRosSrv;
-    uint32_t                   alRosSrvCnt;
-    t_callback_list_element *  alRosClt;
-    uint32_t                   alRosCltCnt;
+    t_callback_lists            CallbackLists;
 
 }t_reconros_executor;
 
@@ -71,5 +44,17 @@ typedef struct
 
 }t_callback;
 
+int ReconROS_Executor_Init(t_reconros_executor * reconros_executor, uint32_t nSlots, uint32_t nSwThreads, char * bitstream_dir);
 
-int ReconROS_Executor_Add_Callback(t_reconros_executor * reconros_executor, t_callback * callback);
+int ReconROS_Executor_Add_HW_Callback(t_reconros_executor * reconros_executor, char * CallbackName, uint32_t nSlotMask, enum ReconROS_primitive primitive, void * object, void * object_result, void * resources, int resource_cnt );
+
+int ReconROS_Executor_Add_SW_Callback(t_reconros_executor * reconros_executor, char * CallbackName, function_ptr pCallback, enum ReconROS_primitive primitive, void * object, void * object_result, void * resources, int resource_cnt );
+
+int ReconROS_Executor_Spin(t_reconros_executor * reconros_executor);
+
+
+
+
+
+
+#endif
