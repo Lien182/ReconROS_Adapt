@@ -52,7 +52,9 @@ int ReconROS_Executor_Add_SW_Callback(t_reconros_executor * reconros_executor, c
 
 int ReconROS_Executor_Spin(t_reconros_executor * reconros_executor);
 
+int ReconROS_Executor_Join(t_reconros_executor * reconros_executor);
 
+int ReconROS_Executor_Terminate(t_reconros_executor * reconros_executor);
 
 
 

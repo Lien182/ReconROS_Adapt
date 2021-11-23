@@ -41,5 +41,6 @@ int Callbacklist_GetHWCallback(t_callback_lists * callback_lists, uint32_t nSlot
 
 int Callbacklist_GetSWCallback(t_callback_lists * callbackliists, function_ptr * pCallback, void ** ppMessage);
 
+int Callbacklist_Release(t_callback_lists * callbackliists, int id);
 
 #endif

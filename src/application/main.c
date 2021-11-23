@@ -27,16 +27,26 @@ void init_msg(void)
 	rsobel_image_msg_out->data.capacity = IMAGE_HEIGHT*IMAGE_WIDTH*3;
 }
 
-
 extern void *rt_sortdemo(void *data);
 extern struct reconos_resource *resources_sortdemo[];
+extern void *rt_inverse(void *data);
+extern struct reconos_resource *resources_inverse[];
 
+t_reconros_executor reconros_executor;
+
+static void exit_signal(int sig) 
+{
+	ReconROS_Executor_Terminate(&reconros_executor);
+	reconos_cleanup();
+	printf("[recobop] aborted\n");
+	//exit(0);
+}
 
 int main(int argc, char **argv) 
 {
 
 
-	t_reconros_executor reconros_executor;
+
 	
 	// if(argc != 4)
     // {
@@ -62,20 +72,26 @@ int main(int argc, char **argv)
 	reconos_init();
 	reconos_app_init();
 
+	signal(SIGINT, exit_signal);
+	signal(SIGTERM, exit_signal);
+	signal(SIGABRT, exit_signal);
+
 	printf("ReconROS init done \n");
-
-
 	ReconROS_Executor_Init(&reconros_executor, 0, 1, "/mnt/bitstreams/");
 	printf("ReconROS_Executor init done \n");
-	ReconROS_Executor_Add_SW_Callback(&reconros_executor, "sortdemo", rt_sortdemo, ReconROS_SRV, rsort_srv, rsort_sort_srv_req, resources_sortdemo, 4);
+	ReconROS_Executor_Add_SW_Callback(&reconros_executor, "inverse", rt_inverse, ReconROS_SUB, rinverse_subdata, rinverse_input_msg, resources_inverse, 4);
+
+
+	//ReconROS_Executor_Add_SW_Callback(&reconros_executor, "sortdemo", rt_sortdemo, ReconROS_SRV, rsort_srv, rsort_sort_srv_req, resources_sortdemo, 4);
 	printf("ReconROS Callback added\n");
 
 
 	ReconROS_Executor_Spin(&reconros_executor);
-
 	
 	reconos_app_cleanup();
 	reconos_cleanup();
 
 	return 0;
 }
+
+

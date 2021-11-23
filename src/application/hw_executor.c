@@ -61,3 +61,11 @@ int ReconROS_HWExecutor_Join(t_reconros_hwexecutor * reconros_hwexecutor)
 	pthread_join(reconros_hwexecutor->ptAgent, (void**)&ret_value);
 	return 0;
 }
+
+
+int ReconROS_HWExecutor_Terminate(t_reconros_hwexecutor * reconros_hwexecutor)
+{
+	reconros_hwexecutor->bRun = 0UL;
+
+	return 0;
+}

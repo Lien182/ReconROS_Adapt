@@ -23,4 +23,6 @@ int     ReconROS_SWExecutor_Spin(t_reconros_swexecutor * reconros_swexecutor);
 
 int     ReconROS_SWExecutor_Join(t_reconros_swexecutor * reconros_swexecutor);
 
+int     ReconROS_SWExecutor_Terminate(t_reconros_swexecutor * reconros_swexecutor);
+
 #endif

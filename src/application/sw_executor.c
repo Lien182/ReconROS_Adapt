@@ -15,16 +15,18 @@ static void * ReconROS_SWExecutor_Agent(void * args)
 
 	while(reconros_swexecutor->bRun)
 	{
-		printf("[ReconROS_SWExecutor_Agent] Check the callback \n");
-		if(Callbacklist_GetSWCallback(reconros_swexecutor->callbacklists,&pCallback, &message) < 0)
+		//printf("[ReconROS_SWExecutor_Agent] Check the callback \n");
+
+		int callbackid = Callbacklist_GetSWCallback(reconros_swexecutor->callbacklists,&pCallback, &message);
+		if(callbackid < 0)
 		{
 			usleep(10000);
 		}
 		else
 		{
 			printf("[ReconROS_SWExecutor_Agent] Going to execute the function \n");
-
 			function_ptr(message);
+			Callbacklist_Release(reconros_swexecutor->callbacklists, callbackid);
 		}
 
 
@@ -63,5 +65,13 @@ int ReconROS_SWExecutor_Join(t_reconros_swexecutor * reconros_swexecutor)
 {
 	uint32_t ret_value;
 	pthread_join(reconros_swexecutor->ptAgent, (void**)&ret_value);
+	return 0;
+}
+
+
+int ReconROS_SWExecutor_Terminate(t_reconros_swexecutor * reconros_swexecutor)
+{
+	reconros_swexecutor->bRun = 0UL;
+
 	return 0;
 }

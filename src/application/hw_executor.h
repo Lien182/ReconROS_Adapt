@@ -24,4 +24,5 @@ int ReconROS_HWExecutor_Spin(t_reconros_hwexecutor * reconros_hwexecutor);
 
 int ReconROS_HWExecutor_Join(t_reconros_hwexecutor * reconros_hwexecutor);
 
+int ReconROS_HWExecutor_Terminate(t_reconros_hwexecutor * reconros_hwexecutor);
 #endif

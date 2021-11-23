@@ -73,8 +73,26 @@ int ReconROS_Executor_Spin(t_reconros_executor * reconros_executor)
         ReconROS_SWExecutor_Spin(&(reconros_executor->pExecutorsSw)[i]);
     }
 
+    ReconROS_Executor_Join(reconros_executor);
+
     return 0;
 
+}
+
+
+int ReconROS_Executor_Join(t_reconros_executor * reconros_executor)
+{
+    for(int i = 0; i < reconros_executor->nExecutorsHw; i++)
+    {
+        ReconROS_HWExecutor_Join(&(reconros_executor->pExecutorsHw)[i]);
+    }
+
+    for(int i = 0; i < reconros_executor->nExecutorsSw; i++)
+    {
+        ReconROS_SWExecutor_Join(&(reconros_executor->pExecutorsSw)[i]);
+    }
+
+    return 0;
 }
 
 
@@ -205,6 +223,24 @@ int ReconROS_Executor_Add_SW_Callback(t_reconros_executor * reconros_executor, c
     return 1;
 }
 
+
+int ReconROS_Executor_Terminate(t_reconros_executor * reconros_executor)
+{
+    for(int i = 0; i < reconros_executor->nExecutorsHw; i++)
+    {
+        ReconROS_HWExecutor_Terminate(&(reconros_executor->pExecutorsHw)[i]);
+    }
+
+    for(int i = 0; i < reconros_executor->nExecutorsSw; i++)
+    {
+        ReconROS_SWExecutor_Terminate(&(reconros_executor->pExecutorsSw)[i]);
+    }
+
+//    ReconROS_Executor_Join(reconros_executor);
+
+    return 0;
+
+}
 
 
 

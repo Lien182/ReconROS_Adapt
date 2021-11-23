@@ -27,38 +27,38 @@ int Callbacklist_Init(t_callback_lists * callback_lists)
 
 int Callbacklist_GetNextTimer(t_callback_lists * callback_lists, t_callback_list_element ** element, uint32_t u32SlotMask) // if slotmask is 0, return sw
 {
-    printf("[Callbacklist_GetNextTimer] debug 0 \n");
+    //printf("[Callbacklist_GetNextTimer] debug 0 \n");
     return 0;
 }
 
-int Callbacklist_ReleaseTimer(t_callback_lists * callback_lists, t_callback_list_element ** element)
+int Callbacklist_ReleaseTimer(t_callback_lists * callback_lists, t_callback_list_element * element)
 {
-    pthread_mutex_unlock(&(*element)->object_lock);   
+    pthread_mutex_unlock(&element->object_lock);   
     return 1;
 }
 
 int Callbacklist_GetNextSubscriber(t_callback_lists * callback_lists, t_callback_list_element ** element, uint32_t u32SlotMask) // if slotmask is 0, return sw
 {
-     printf("[Callbacklist_GetNextSubscriber] debug -1, %x \n", callback_lists);
+    //printf("[Callbacklist_GetNextSubscriber] debug -1, %x \n", callback_lists);
     for(int i = 0; i < callback_lists->alRosSubCnt; i++)
     {
-         printf("[Callbacklist_GetNextSubscriber] debug 0 \n");
+        //printf("[Callbacklist_GetNextSubscriber] debug 0 \n");
         if((u32SlotMask == 0 ) || (callback_lists->alRosSub[i].nSlotMask & u32SlotMask))
         {
-            printf("[Callbacklist_GetNextSubscriber] debug 1 \n");
+            //printf("[Callbacklist_GetNextSubscriber] debug 1 \n");
             if(pthread_mutex_trylock(&(callback_lists->alRosSub[i].object_lock)) == 0) // check if resource is free
             {
-                printf("[Callbacklist_GetNextSubscriber] debug 2 \n");
+                //printf("[Callbacklist_GetNextSubscriber] debug 2 \n");
                 if(ros_subscriber_message_try_take((struct ros_subscriber_t*)(callback_lists->alRosSub[i].pReconROSPrimitive), callback_lists->alRosSub[i].pReconROSResultPrimitive ) == 0) // if no 
                 {
-                    printf("[Callbacklist_GetNextSubscriber] debug 3 \n");
+                    //printf("[Callbacklist_GetNextSubscriber] debug 3 \n");
                     //we found a subscriber with a new message;
                     *element = &callback_lists->alRosSub[i];
-                    return i;
+                    return 1;
                 }
                 else
                 {
-                    printf("[Callbacklist_GetNextSubscriber] debug 4 \n");
+                    //printf("[Callbacklist_GetNextSubscriber] debug 4 \n");
                     pthread_mutex_unlock(&(callback_lists->alRosSub[i].object_lock));            
                 }
 
@@ -71,13 +71,13 @@ int Callbacklist_GetNextSubscriber(t_callback_lists * callback_lists, t_callback
        
 
     }
-    printf("[Callbacklist_GetNextSubscriber] debug 5 \n");
+    //printf("[Callbacklist_GetNextSubscriber] debug 5 \n");
     return 0;
 }
 
-int Callbacklist_ReleaseSubscriber(t_callback_lists * callback_lists, t_callback_list_element ** element, uint32_t u32SlotMask)
+int Callbacklist_ReleaseSubscriber(t_callback_lists * callback_lists, t_callback_list_element * element)
 {
-    pthread_mutex_unlock(&(*element)->object_lock);   
+    pthread_mutex_unlock(&element->object_lock);   
     return 1;
 }
 
@@ -85,23 +85,23 @@ int Callbacklist_GetNextService(t_callback_lists * callback_lists, t_callback_li
 {
     for(int i = 0; i < callback_lists->alRosSrvCnt; i++)
     {
-        printf("[Callbacklist_GetNextService] debug 1 \n");
+        //printf("[Callbacklist_GetNextService] debug 1 \n");
         if((u32SlotMask == 0 ) || (callback_lists->alRosSrv[i].nSlotMask & u32SlotMask))
         {
-            printf("[Callbacklist_GetNextService] debug 2 \n");
+            //printf("[Callbacklist_GetNextService] debug 2 \n");
             if(pthread_mutex_trylock(&(callback_lists->alRosSrv[i].object_lock)) == 0) // check if resource is free
             {
-                printf("[Callbacklist_GetNextService] debug 3 \n");
+                //printf("[Callbacklist_GetNextService] debug 3 \n");
                 if(ros_service_server_request_try_take((struct ros_service_server_t*)(callback_lists->alRosSrv[i].pReconROSPrimitive), callback_lists->alRosSrv[i].pReconROSResultPrimitive ) == 0) // if no 
                 {
-                    printf("[Callbacklist_GetNextService] debug 4 \n");
+                    //printf("[Callbacklist_GetNextService] debug 4 \n");
                     //we found a subscriber with a new message;
                     *element = &callback_lists->alRosSrv[i];
-                    return i;
+                    return 1;
                 }
                 else
                 {
-                    printf("[Callbacklist_GetNextService] debug 5 \n");
+                    //printf("[Callbacklist_GetNextService] debug 5 \n");
                     pthread_mutex_unlock(&(callback_lists->alRosSrv[i].object_lock));            
                 }
 
@@ -114,13 +114,13 @@ int Callbacklist_GetNextService(t_callback_lists * callback_lists, t_callback_li
        
 
     }
-    printf("[Callbacklist_GetNextService] debug 6 \n");
+    //printf("[Callbacklist_GetNextService] debug 6 \n");
     return 0;
 }
 
-int Callbacklist_ReleaseService(t_callback_lists * callback_lists, t_callback_list_element ** element, uint32_t u32SlotMask)
+int Callbacklist_ReleaseService(t_callback_lists * callback_lists, t_callback_list_element * element)
 {
-    pthread_mutex_unlock(&(*element)->object_lock);   
+    pthread_mutex_unlock(&element->object_lock);   
     return 1;
 }
 
@@ -129,9 +129,9 @@ int Callbacklist_GetNextClient(t_callback_lists * callback_lists, t_callback_lis
     return 0;
 }
 
-int Callbacklist_ReleaseClient(t_callback_lists * callback_lists, t_callback_list_element ** element, uint32_t u32SlotMask)
+int Callbacklist_ReleaseClient(t_callback_lists * callback_lists, t_callback_list_element * element)
 {
-    pthread_mutex_unlock(&(*element)->object_lock);   
+    pthread_mutex_unlock(&element->object_lock);   
     return 1;
 }
 
@@ -214,7 +214,7 @@ int Callbacklist_GetHWCallback(t_callback_lists * callback_lists, uint32_t nSlot
 int Callbacklist_GetSWCallback(t_callback_lists * callbacklists, function_ptr * pCallback, void ** ppMessage)
 {
     t_callback_list_element * element;
-    printf("[Callbacklist_GetSWCallback] check for new events \n");
+    //printf("[Callbacklist_GetSWCallback] check for new events \n");
 
     if(Callbacklist_GetNextTimer(callbacklists, &element, 0))
     {
@@ -249,7 +249,53 @@ int Callbacklist_GetSWCallback(t_callback_lists * callbacklists, function_ptr * 
         return element->callback_id;
     }
 
-    printf("[Callbacklist_GetSWCallback] No events found\n");
+    //printf("[Callbacklist_GetSWCallback] No events found\n");
 
     return -1;
+}
+
+
+
+int Callbacklist_Release(t_callback_lists * callbackliists, int id)
+{
+    printf("[Callbacklist_Release] release element\n");
+
+    for(int i = 0; i < callbackliists->alRosTmrCnt; i++)
+    {
+        if(callbackliists->alRosTmr[i].callback_id == id)
+        {
+            Callbacklist_ReleaseTimer(callbackliists, &callbackliists->alRosTmr[i]);
+            return 1;
+        }
+    }
+
+    for(int i = 0; i < callbackliists->alRosSubCnt; i++)
+    {
+        if(callbackliists->alRosSub[i].callback_id == id)
+        {
+            Callbacklist_ReleaseTimer(callbackliists, &callbackliists->alRosSub[i]);
+            return 1;
+        }
+    }
+
+    for(int i = 0; i < callbackliists->alRosSrvCnt; i++)
+    {
+        if(callbackliists->alRosSrv[i].callback_id == id)
+        {
+            Callbacklist_ReleaseTimer(callbackliists, &callbackliists->alRosSrv[i]);
+            return 1;
+        }
+    }
+
+    for(int i = 0; i < callbackliists->alRosCltCnt; i++)
+    {
+        if(callbackliists->alRosClt[i].callback_id == id)
+        {
+            Callbacklist_ReleaseTimer(callbackliists, &callbackliists->alRosClt[i]);
+            return 1;
+        }
+    }
+
+
+    return 0;
 }
