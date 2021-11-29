@@ -16,18 +16,47 @@ static void * ReconROS_HWExecutor_Agent(void * args)
 
 	while(reconros_hwexecutor->bRun)
 	{
-		clock_gettime(CLOCK_MONOTONIC, &t_start);
-		bytes_moved = Zycap_Write_Bitstream(reconros_hwexecutor->Zycap, 0);
-		clock_gettime(CLOCK_MONOTONIC, &t_end);
-		timespec_diff(&t_start, &t_end, &t_res);
-		printf("ReconROS_HWExecutor_Agent Slot %d: reconfiguration time %3.6f; bytes_moved = %d\n", reconros_hwexecutor->uSlotid, (double)(t_res.tv_nsec)/1000000000, bytes_moved);
+		
+		struct reconos_thread * hwthread;
+		t_bitstream * bitstream;
+		void * message;
+
+		//printf("[ReconROS_HWExecutor_Agent %d] Check for HW callback \n", reconros_hwexecutor->uSlotid);
+		int callbackid = Callbacklist_GetHWCallback(reconros_hwexecutor->pCallbacklists, reconros_hwexecutor->uSlotMask, &hwthread, &bitstream, &message);
+		//printf("[ReconROS_HWExecutor_Agent %d] Hw callback checked; callbackid=%d \n",reconros_hwexecutor->uSlotid, callbackid);
+		if(callbackid < 0)
+		{
+			usleep(10000);
+		}
+		else
+		{
+
+			clock_gettime(CLOCK_MONOTONIC, &t_start);
+			bytes_moved = Zycap_Write_Bitstream(reconros_hwexecutor->Zycap, bitstream);
+			clock_gettime(CLOCK_MONOTONIC, &t_end);
+			timespec_diff(&t_start, &t_end, &t_res);
+			printf("[ReconROS_HWExecutor_Agent %d] reconfiguration time %3.6f; bytes_moved = %d\n", reconros_hwexecutor->uSlotid, (double)(t_res.tv_nsec)/1000000000, bytes_moved);
+
+			//clock_gettime(CLOCK_MONOTONIC, &t_start);
+			//bytes_moved = Zycap_Write_Bitstream(reconros_hwexecutor->Zycap, ++bitstream);
+			//clock_gettime(CLOCK_MONOTONIC, &t_end);
+			//timespec_diff(&t_start, &t_end, &t_res);
+			//printf("[ReconROS_HWExecutor_Agent %d] reconfiguration time %3.6f; bytes_moved = %d\n", reconros_hwexecutor->uSlotid, (double)(t_res.tv_nsec)/1000000000, bytes_moved);
+
+			usleep(10000);
 
 
-		//reconros_thread_resume()
-		//Wait for ReconOS Thread exit;
+			reconos_thread_setinitdata(hwthread, message);
 
-		//reconos_thread_suspend(reconros_hwexecutor->rr_thread);
+			printf("[ReconROS_HWExecutor_Agent %d] Going to execute the function \n", reconros_hwexecutor->uSlotid);
+			reconos_thread_resume(hwthread, reconros_hwexecutor->uSlotid);
+			printf("[ReconROS_HWExecutor_Agent %d] Wait for finishing \n", reconros_hwexecutor->uSlotid);
+			reconos_thread_join(hwthread);
+			//reconos_thread_suspend(hwthread);
 
+			
+			Callbacklist_Release(reconros_hwexecutor->pCallbacklists, callbackid);
+		}
 	}
 
 
@@ -38,18 +67,27 @@ static void * ReconROS_HWExecutor_Agent(void * args)
 
 
 
-int ReconROS_HWExecutor_Init(t_reconros_hwexecutor * reconros_hwexecutor, t_zycap * zycap, uint32_t nSlotMask)		//bit n = true for 
+int ReconROS_HWExecutor_Init(t_reconros_hwexecutor * reconros_hwexecutor, t_zycap * zycap, t_callback_lists * pCallbacklists, uint32_t nSlotId)	//bit n = true for 
 {
+	reconros_hwexecutor->bRun = 0;
+	reconros_hwexecutor->Zycap = zycap;
+	reconros_hwexecutor->pCallbacklists = pCallbacklists;
+	reconros_hwexecutor->ptAgent = NULL;
+	reconros_hwexecutor->uSlotid = nSlotId;
+	reconros_hwexecutor->uSlotMask = (1<< nSlotId);
 	return 0;
 }
 
 int ReconROS_HWExecutor_Spin(t_reconros_hwexecutor * reconros_hwexecutor)
 {
 
+	printf("test \n");
 	reconros_hwexecutor->bRun = 1UL;
+	printf("[ReconROS_HWExecutor_Spin] start agent for slot id %d \n", reconros_hwexecutor->uSlotid);
 
 	if(pthread_create(&reconros_hwexecutor->ptAgent, 0, ReconROS_HWExecutor_Agent, (void*)reconros_hwexecutor) != 0)
 	{
+		printf("[ReconROS_HWExecutor_Spin] Failed to create agent for slot %d \n", reconros_hwexecutor->uSlotid);
 		return -1;
     }
 	return 0;

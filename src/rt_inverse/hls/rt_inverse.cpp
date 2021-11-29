@@ -53,136 +53,135 @@ THREAD_ENTRY() {
 
 	THREAD_INIT();
 
-	uint32_t output_buffer_addr = GET_INIT_DATA();
+	ap_uint<32> data;
+	uint32_t tmp;
 
-	while (1) {
+	uint32_t message_data[1];		
+	uint32_t pMessage = GET_INIT_DATA();
 
-		ap_uint<32> data;
-		uint32_t tmp;
+	MEM_READ(pMessage, message_data, 4 );
+	data.range(31,0) = message_data[0];		
 
-		uint32_t message_data[1];		
-		uint32_t pMessage = ROS_SUBSCRIBE_TAKE(rinverse_subdata, rinverse_input_msg );
+	ap_int<16> cmd_alpha = data(30, 17);
+	ap_int<16> cmd_beta  = data(16, 3);
+	ap_uint<3> cmd_l     = data(2, 0);
 
-		MEM_READ(pMessage, message_data, 4 );
-		data.range(31,0) = message_data[0];		
+	if(data(30,30) == 1)
+		cmd_alpha |= 0xC000;
+
+	if(data(16,16) == 1)
+		cmd_beta |= 0xC000;
+
+	cmd_alpha *= 10;
+	cmd_beta  *= 10;
+
+	ap_fixed<22,2> t_p2b_alpha_sin; 
+	ap_fixed<22,2> t_p2b_alpha_cos;
+	ap_fixed<22,2> t_p2b_beta_sin;
+	ap_fixed<22,2> t_p2b_beta_cos;
+
+	if(data(30,30) == 1)
+	{
+		cmd_alpha *= -1;
+		t_p2b_alpha_sin = -sin_lut[cmd_alpha >> 8];
+		t_p2b_alpha_cos =  cos_lut[cmd_alpha >> 8];
+	}
+	else
+	{
+		
+		t_p2b_alpha_sin = sin_lut[cmd_alpha >> 8];
+		t_p2b_alpha_cos = cos_lut[cmd_alpha >> 8];
+	}
 	
-		ap_int<16> cmd_alpha = data(30, 17);
-		ap_int<16> cmd_beta  = data(16, 3);
-		ap_uint<3> cmd_l     = data(2, 0);
+	if(data(16,16) == 1)
+	{
+		cmd_beta *= -1;
+		t_p2b_beta_sin = -sin_lut[cmd_beta >> 8];
+		t_p2b_beta_cos =  cos_lut[cmd_beta >> 8];
+	}
+	else
+	{		
+		t_p2b_beta_sin  = sin_lut[cmd_beta  >> 8];
+		t_p2b_beta_cos  = cos_lut[cmd_beta  >> 8];
+	}
+	
+	int leg = cmd_l;
 
-		if(data(30,30) == 1)
-			cmd_alpha |= 0xC000;
+	ap_fixed<22,10> p_b_j_x, p_b_j_y, p_b_j_z;
+	ap_fixed<22,10> p_s_j_x, p_s_j_y, p_s_j_z;
 
-		if(data(16,16) == 1)
-			cmd_beta |= 0xC000;
-
-		cmd_alpha *= 10;
-		cmd_beta  *= 10;
-
-		ap_fixed<22,2> t_p2b_alpha_sin; 
-		ap_fixed<22,2> t_p2b_alpha_cos;
-		ap_fixed<22,2> t_p2b_beta_sin;
-		ap_fixed<22,2> t_p2b_beta_cos;
-
-		if(data(30,30) == 1)
-		{
-			cmd_alpha *= -1;
-			t_p2b_alpha_sin = -sin_lut[cmd_alpha >> 8];
-			t_p2b_alpha_cos =  cos_lut[cmd_alpha >> 8];
-		}
-		else
-		{
-			
-			t_p2b_alpha_sin = sin_lut[cmd_alpha >> 8];
-			t_p2b_alpha_cos = cos_lut[cmd_alpha >> 8];
-		}
-		
-		if(data(16,16) == 1)
-		{
-			cmd_beta *= -1;
-			t_p2b_beta_sin = -sin_lut[cmd_beta >> 8];
-			t_p2b_beta_cos =  cos_lut[cmd_beta >> 8];
-		}
-		else
-		{		
-			t_p2b_beta_sin  = sin_lut[cmd_beta  >> 8];
-			t_p2b_beta_cos  = cos_lut[cmd_beta  >> 8];
-		}
-		
-		int leg = cmd_l;
-
-		ap_fixed<22,10> p_b_j_x, p_b_j_y, p_b_j_z;
-		ap_fixed<22,10> p_s_j_x, p_s_j_y, p_s_j_z;
-
-		ap_fixed<22,10> v_s_aj_x, v_s_aj_y, v_s_aj_z;
-		ap_fixed<32,20> v_s_aj_l_min, v_s_aj_l;
-		ap_uint<TRIG_ADDR> v_s_aj_l_mina;
+	ap_fixed<22,10> v_s_aj_x, v_s_aj_y, v_s_aj_z;
+	ap_fixed<32,20> v_s_aj_l_min, v_s_aj_l;
+	ap_uint<TRIG_ADDR> v_s_aj_l_mina;
 
 
-		p_b_j_x =  	 t_p2b_beta_cos * p_p_j_x[leg];
+	p_b_j_x =  	 t_p2b_beta_cos * p_p_j_x[leg];
 
-		p_b_j_y =    t_p2b_alpha_sin * t_p2b_beta_sin * p_p_j_x[leg] 
-				  +  t_p2b_alpha_cos * p_p_j_y[leg]; 
+	p_b_j_y =    t_p2b_alpha_sin * t_p2b_beta_sin * p_p_j_x[leg] 
+				+  t_p2b_alpha_cos * p_p_j_y[leg]; 
 
-		p_b_j_z =   -t_p2b_alpha_cos * t_p2b_beta_sin * p_p_j_x[leg] 
-				  +  t_p2b_alpha_sin * p_p_j_y[leg];
+	p_b_j_z =   -t_p2b_alpha_cos * t_p2b_beta_sin * p_p_j_x[leg] 
+				+  t_p2b_alpha_sin * p_p_j_y[leg];
 
-		// translate by t_Z
-		p_b_j_z = p_b_j_z + t_p2b_t_z;
+	// translate by t_Z
+	p_b_j_z = p_b_j_z + t_p2b_t_z;
 
-		// transform into servo coordinatesystem based on leg id
-		// rotate around z axis by rz_sin/rz_cos
-		p_s_j_x = t_b2s_rz_cos[leg] * p_b_j_x - t_b2s_rz_sin[leg] * p_b_j_y + 0 * p_b_j_z;
-		p_s_j_y = t_b2s_rz_sin[leg] * p_b_j_x + t_b2s_rz_cos[leg] * p_b_j_y + 0 * p_b_j_z;
-		p_s_j_z = 0                 * p_b_j_x + 0                 * p_b_j_y + 1 * p_b_j_z;
+	// transform into servo coordinatesystem based on leg id
+	// rotate around z axis by rz_sin/rz_cos
+	p_s_j_x = t_b2s_rz_cos[leg] * p_b_j_x - t_b2s_rz_sin[leg] * p_b_j_y + 0 * p_b_j_z;
+	p_s_j_y = t_b2s_rz_sin[leg] * p_b_j_x + t_b2s_rz_cos[leg] * p_b_j_y + 0 * p_b_j_z;
+	p_s_j_z = 0                 * p_b_j_x + 0                 * p_b_j_y + 1 * p_b_j_z;
 
-		// scale axis by s_x, s_y and s_z
-		p_s_j_x = t_b2s_s_x[leg] * p_s_j_x;
-		p_s_j_y = t_b2s_s_y[leg] * p_s_j_y;
-		p_s_j_z = t_b2s_s_z[leg] * p_s_j_z;
+	// scale axis by s_x, s_y and s_z
+	p_s_j_x = t_b2s_s_x[leg] * p_s_j_x;
+	p_s_j_y = t_b2s_s_y[leg] * p_s_j_y;
+	p_s_j_z = t_b2s_s_z[leg] * p_s_j_z;
 
-		// translate by t_x, t_y and t_z
-		p_s_j_x = p_s_j_x + t_b2s_t_x;
-		p_s_j_y = p_s_j_y + t_b2s_t_y;
-		p_s_j_z = p_s_j_z + t_b2s_t_z;
+	// translate by t_x, t_y and t_z
+	p_s_j_x = p_s_j_x + t_b2s_t_x;
+	p_s_j_y = p_s_j_y + t_b2s_t_y;
+	p_s_j_z = p_s_j_z + t_b2s_t_z;
 
 
-		// find angle for leg length
-		v_s_aj_l_min = ap_fixed<22,20>("01111111111111111111", 2);
-		for (int i = 0; i < TRIG_COUNT; i++) {
-			// calculate vector from arm to joint
-			v_s_aj_x = p_s_j_x - sin_lut[i] * c_arm;
-			v_s_aj_y = p_s_j_y - 0;
-			v_s_aj_z = p_s_j_z - cos_lut[i] * c_arm;
-			v_s_aj_l = v_s_aj_x * v_s_aj_x + v_s_aj_y * v_s_aj_y + v_s_aj_z * v_s_aj_z;
+	// find angle for leg length
+	v_s_aj_l_min = ap_fixed<22,20>("01111111111111111111", 2);
+	for (int i = 0; i < TRIG_COUNT; i++) {
+		// calculate vector from arm to joint
+		v_s_aj_x = p_s_j_x - sin_lut[i] * c_arm;
+		v_s_aj_y = p_s_j_y - 0;
+		v_s_aj_z = p_s_j_z - cos_lut[i] * c_arm;
+		v_s_aj_l = v_s_aj_x * v_s_aj_x + v_s_aj_y * v_s_aj_y + v_s_aj_z * v_s_aj_z;
 
-			if (c_legs < v_s_aj_l) {
-				if (v_s_aj_l - c_legs < v_s_aj_l_min) {
-					v_s_aj_l_min = v_s_aj_l - c_legs;
-					v_s_aj_l_mina = i;
-				}
-			} else {
-				if (c_legs - v_s_aj_l < v_s_aj_l_min) {
-					v_s_aj_l_min = c_legs - v_s_aj_l;
-					v_s_aj_l_mina = i;
-				}
+		if (c_legs < v_s_aj_l) {
+			if (v_s_aj_l - c_legs < v_s_aj_l_min) {
+				v_s_aj_l_min = v_s_aj_l - c_legs;
+				v_s_aj_l_mina = i;
 			}
-		}	
-		
+		} else {
+			if (c_legs - v_s_aj_l < v_s_aj_l_min) {
+				v_s_aj_l_min = c_legs - v_s_aj_l;
+				v_s_aj_l_mina = i;
+			}
+		}
+	}	
+	
 
 
 
-	{	
-		#pragma HLS PROTOCOL fixed
-		uint32_t outputdata[1];
-		outputdata[0] = (v_s_aj_l_mina, cmd_l, ap_uint<18>(0));
-		MEM_WRITE(outputdata, output_buffer_addr,4);
-		ap_wait();
-		ROS_PUBLISH(rinverse_pubdata,rinverse_output_msg);	
-	}
+{	
+	#pragma HLS PROTOCOL fixed
+	uint32_t outputdata[1];
+	uint32_t output_buffer_addr = MEMORY_GETOBJECTADDR(rinverse_output_msg);
+	outputdata[0] = (v_s_aj_l_mina, cmd_l, ap_uint<18>(0));
+	MEM_WRITE(outputdata, output_buffer_addr,4);
+	ap_wait();
+	ROS_PUBLISH(rinverse_pubdata,rinverse_output_msg);	
+	ap_wait();
+	THREAD_EXIT();
+}
 	
 		
-	}
+	
 
 
 }

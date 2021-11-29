@@ -15,11 +15,12 @@ int ReconROS_Executor_Init(t_reconros_executor * reconros_executor, uint32_t nSl
 
     strcpy(reconros_executor->pBitstreamDir, bitstream_dir);
 
-    if(reconros_executor->pExecutorsHw > 0)
+    if(reconros_executor->nExecutorsHw > 0)
     {
         Zycap_Init(&reconros_executor->Zycap);
 
         reconros_executor->pExecutorsHw = malloc(sizeof(t_reconros_hwexecutor) * nSlots);
+        printf("debug: %x \n", reconros_executor->pExecutorsHw);
         if(reconros_executor->pExecutorsHw == 0)
         {
             printf("[ReconROS_Executor_Init] ERROR: failed to allocate memory for pExecutorsHw\n");
@@ -28,7 +29,11 @@ int ReconROS_Executor_Init(t_reconros_executor * reconros_executor, uint32_t nSl
 
         for(int i = 0; i < reconros_executor->nExecutorsHw; i++)
         {
-            ReconROS_HWExecutor_Init(&(reconros_executor->pExecutorsHw[i]), &reconros_executor->Zycap, i);
+            if(ReconROS_HWExecutor_Init(&(reconros_executor->pExecutorsHw[i]), &reconros_executor->Zycap, &reconros_executor->CallbackLists, i) != 0)
+            {
+                printf("[ReconROS_Executor_Init] ReconROS_HWExecutor_Init (%d) failed \n", i);
+                return -1;
+            }
         }
     }
 
@@ -62,15 +67,15 @@ int ReconROS_Executor_Init(t_reconros_executor * reconros_executor, uint32_t nSl
 
 int ReconROS_Executor_Spin(t_reconros_executor * reconros_executor)
 {
-
+     printf("debug: %x \n", reconros_executor->pExecutorsHw);
     for(int i = 0; i < reconros_executor->nExecutorsHw; i++)
     {
-        ReconROS_HWExecutor_Spin(&(reconros_executor->pExecutorsHw)[i]);
+        ReconROS_HWExecutor_Spin(&(reconros_executor->pExecutorsHw[i]));
     }
 
     for(int i = 0; i < reconros_executor->nExecutorsSw; i++)
     {
-        ReconROS_SWExecutor_Spin(&(reconros_executor->pExecutorsSw)[i]);
+        ReconROS_SWExecutor_Spin(&(reconros_executor->pExecutorsSw[i]));
     }
 
     ReconROS_Executor_Join(reconros_executor);
@@ -84,7 +89,7 @@ int ReconROS_Executor_Join(t_reconros_executor * reconros_executor)
 {
     for(int i = 0; i < reconros_executor->nExecutorsHw; i++)
     {
-        ReconROS_HWExecutor_Join(&(reconros_executor->pExecutorsHw)[i]);
+        //ReconROS_HWExecutor_Join(&(reconros_executor->pExecutorsHw)[i]);
     }
 
     for(int i = 0; i < reconros_executor->nExecutorsSw; i++)
@@ -140,6 +145,12 @@ int ReconROS_Executor_Add_HW_Callback(t_reconros_executor * reconros_executor, c
     pCallback->bitstreams = malloc(sizeof(t_bitstream) * nSlotCnt);
     if(!pCallback->bitstreams)
         return -1;
+    for(int i = 0; i < nSlotCnt; i++)
+    {
+        pCallback->bitstreams[i].size = 0;
+        pCallback->bitstreams[i].data = 0;
+    }
+        
 
     char buf[255];
 
@@ -175,7 +186,7 @@ int ReconROS_Executor_Add_HW_Callback(t_reconros_executor * reconros_executor, c
 	reconos_thread_setinitdata(pCallback->pHWthread, 0); //later set: object ptr
 	reconos_thread_setallowedslots(pCallback->pHWthread, slots, nSlotCnt);
 	reconos_thread_setresourcepointers(pCallback->pHWthread, resources, resource_cnt);
-	reconos_thread_create_auto(pCallback->pHWthread, RECONOS_THREAD_HW);
+	//reconos_thread_create_auto(pCallback->pHWthread, RECONOS_THREAD_HW);
 
 
     return 1;

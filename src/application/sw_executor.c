@@ -25,7 +25,7 @@ static void * ReconROS_SWExecutor_Agent(void * args)
 		else
 		{
 			printf("[ReconROS_SWExecutor_Agent] Going to execute the function \n");
-			function_ptr(message);
+			pCallback(message);
 			Callbacklist_Release(reconros_swexecutor->callbacklists, callbackid);
 		}
 

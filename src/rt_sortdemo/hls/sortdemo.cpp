@@ -57,22 +57,18 @@ THREAD_ENTRY() {
 	uint32_t pMessage;
 	uint32_t payload_addr[1];
 
-	WAIT_INIT();
 	THREAD_INIT();
 	initdata = GET_INIT_DATA();
 
-	while(1) {
-		pMessage = ROS_SERVICESERVER_TAKE(rsort_srv, rsort_sort_srv_req);		
-		addr = OFFSETOF(sorter_msgs__srv__Sort_Request, unsorted.data) + pMessage;
+	addr = OFFSETOF(sorter_msgs__srv__Sort_Request, unsorted.data) + initdata;
 
-		MEM_READ(addr, payload_addr, 4);					//Get the address of the data
-		MEM_READ(payload_addr[0], ram, BLOCK_SIZE * 4);
+	MEM_READ(addr, payload_addr, 4);					//Get the address of the data
+	MEM_READ(payload_addr[0], ram, BLOCK_SIZE * 4);
 
-		sort_bubble(ram);
-		MEM_WRITE(ram, payload_addr[0], BLOCK_SIZE * 4);
-	
-		ROS_SERVICESERVER_SEND_RESPONSE(rsort_srv,rsort_sort_srv_res);
-	
-						
-	}
+	sort_bubble(ram);
+	MEM_WRITE(ram, payload_addr[0], BLOCK_SIZE * 4);
+
+	ROS_SERVICESERVER_SEND_RESPONSE(rsort_srv,rsort_sort_srv_res);
+
+	THREAD_EXIT();
 }

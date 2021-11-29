@@ -42,71 +42,70 @@ THREAD_ENTRY()
 	int32_t i,k,j, ii, jj;
 	int16_t tmp_x[4], tmp_y[4];
 	uint8_t filter_pointer;
+	uint32_t status = 0;
+	uint32_t input_payload_addr[1];
+	uint32_t output_payload_addr[1];
 
 	THREAD_INIT();
 
-	uint32_t output_buffer_addr = GET_INIT_DATA();
+	uint32_t pMessage = GET_INIT_DATA();	
+	MEM_READ(OFFSETOF(sensor_msgs__msg__Image, data.data) + pMessage,			input_payload_addr, 4);
+	
+	uint32_t output_buffer_addr = MEMORY_GETOBJECTADDR(rsobel_image_msg_out);
+	MEM_READ(OFFSETOF(sensor_msgs__msg__Image, data.data) + output_buffer_addr, output_payload_addr, 4);
 
+	//address <<=2;
+	MEM_READ( input_payload_addr[0], input_linebuffer, INPUT_PREFETCH_SIZE);
 
-	while (1)
+	input_payload_addr[0] += (INPUT_WIDTH<<3); // <<3 = *2*4
+
+	for(i = 1; i < (INPUT_HEIGHT-1); i++)
 	{
-		uint32_t status = 0;
-		uint32_t payload_addr[1];
+		#pragma hls dataflow
+		{
+			if(i > 1)
+				MEM_WRITE( output_linebuffer , (output_payload_addr[0] + (i-1)*OUTPUT_LINE_SIZE), INPUT_LINESIZE );
+			MEM_READ( input_payload_addr[0] , &(input_linebuffer[INPUT_WIDTH* ((i+1)&3)]) , INPUT_LINESIZE );
+			input_payload_addr[0] += (INPUT_WIDTH<<2);
+		}
+		for(j = 1; j < (INPUT_WIDTH-1); j++)
+		{
+			#pragma HLS pipeline
+			#pragma HLS unroll factor=16
+			tmp_x[0]= 0; tmp_y[0] = 0;
+			tmp_x[1]= 0; tmp_y[1] = 0;
+			tmp_x[2]= 0; tmp_y[2] = 0;
+			tmp_x[3]= 0; tmp_y[3] = 0;
+
+			filter_pointer = 0;
+			for(ii=-1; ii < 2; ii++)
+			{	
+				#pragma HLS unroll factor=3
+				for(jj=-1; jj < 2; jj++)  
+				{	
+					#pragma HLS unroll factor=3	
+					uint32_t buffer_pointer = ((INPUT_WIDTH*((i+ii)&3)+(j+jj)));
+					uint32_t actindata  = 	input_linebuffer[buffer_pointer];	
+					for(k = 0; k < 4; k++)
+					{
+						#pragma HLS unroll factor=4
+						int16_t data = ((actindata >> 8*k) & 0x000000ff);
+						tmp_x[k] += data * filter_x[filter_pointer];
+						tmp_y[k] += data * filter_y[filter_pointer];
+						
+					}
+					filter_pointer++;
+				}	
+			}
+			output_linebuffer[(j)] = (((abs(tmp_x[0]) + abs(tmp_y[0])) >> 3)) | (((abs(tmp_x[1]) + abs(tmp_y[1])) >> 3) << 8) | (((abs(tmp_x[2]) + abs(tmp_y[2])) >> 3) << 16) | (((abs(tmp_x[3]) + abs(tmp_y[3])) >> 3) << 24);
+		}
+		
 		
 
-		uint32_t pMessage= ROS_SUBSCRIBE_TAKE(rsobel_subdata, rsobel_image_msg );
-		MEM_READ(OFFSETOF(sensor_msgs__msg__Image, data.data) + pMessage, payload_addr, 4);
-
-		//address <<=2;
-		MEM_READ( payload_addr[0], input_linebuffer, INPUT_PREFETCH_SIZE);
-
-		payload_addr[0] += (INPUT_WIDTH<<3); // <<3 = *2*4
-
-		for(i = 1; i < (INPUT_HEIGHT-1); i++)
-		{
-			#pragma hls dataflow
-			{
-				if(i > 1)
-					MEM_WRITE( output_linebuffer , (output_buffer_addr + (i-1)*OUTPUT_LINE_SIZE), INPUT_LINESIZE );
-				MEM_READ( payload_addr[0] , &(input_linebuffer[INPUT_WIDTH* ((i+1)&3)]) , INPUT_LINESIZE );
-				payload_addr[0] += (INPUT_WIDTH<<2);
-			}
-			for(j = 1; j < (INPUT_WIDTH-1); j++)
-			{
-				#pragma HLS pipeline
-				#pragma HLS unroll factor=16
-				tmp_x[0]= 0; tmp_y[0] = 0;
-				tmp_x[1]= 0; tmp_y[1] = 0;
-				tmp_x[2]= 0; tmp_y[2] = 0;
-				tmp_x[3]= 0; tmp_y[3] = 0;
-
-				filter_pointer = 0;
-				for(ii=-1; ii < 2; ii++)
-				{	
-					#pragma HLS unroll factor=3
-					for(jj=-1; jj < 2; jj++)  
-					{	
-						#pragma HLS unroll factor=3	
-						uint32_t buffer_pointer = ((INPUT_WIDTH*((i+ii)&3)+(j+jj)));
-						uint32_t actindata  = 	input_linebuffer[buffer_pointer];	
-						for(k = 0; k < 4; k++)
-						{
-							#pragma HLS unroll factor=4
-							int16_t data = ((actindata >> 8*k) & 0x000000ff);
-							tmp_x[k] += data * filter_x[filter_pointer];
-							tmp_y[k] += data * filter_y[filter_pointer];
-							
-						}
-						filter_pointer++;
-					}	
-				}
-				output_linebuffer[(j)] = (((abs(tmp_x[0]) + abs(tmp_y[0])) >> 3)) | (((abs(tmp_x[1]) + abs(tmp_y[1])) >> 3) << 8) | (((abs(tmp_x[2]) + abs(tmp_y[2])) >> 3) << 16) | (((abs(tmp_x[3]) + abs(tmp_y[3])) >> 3) << 24);
-			}
-			
-			
-
-		}
-		ROS_PUBLISH(rsobel_pubdata,rsobel_image_msg_out);		
 	}
+	ROS_PUBLISH(rsobel_pubdata, rsobel_image_msg_out);
+
+	THREAD_EXIT();	
+	
 
 }
