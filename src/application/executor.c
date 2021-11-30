@@ -127,7 +127,11 @@ int ReconROS_Executor_Add_HW_Callback(t_reconros_executor * reconros_executor, c
     }
 
     if(pCallback == 0)
+    {
+        printf("[ReconROS_Executor_Add_HW_Callback] ERROR: pCallback not found\n");
         return -1;
+    }
+        
 
     int nSlotCnt = 0;
     int *  slots = malloc(reconros_executor->nExecutorsHw);
@@ -144,7 +148,11 @@ int ReconROS_Executor_Add_HW_Callback(t_reconros_executor * reconros_executor, c
 
     pCallback->bitstreams = malloc(sizeof(t_bitstream) * nSlotCnt);
     if(!pCallback->bitstreams)
-        return -1;
+    {
+        printf("[ReconROS_Executor_Add_HW_Callback] ERROR: !pCallback->bitstreams not allocated\n");    
+        return -1;   
+    }
+
     for(int i = 0; i < nSlotCnt; i++)
     {
         pCallback->bitstreams[i].size = 0;

@@ -1,3 +1,4 @@
+from tensorflow.keras.datasets import mnist
 import rclpy
 from rclpy.node import Node
 from rclpy.client import Client
@@ -10,12 +11,26 @@ import os
 import threading
 import numpy as np
 
+from tensorflow import keras
+from tensorflow.keras.datasets import mnist
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import Dense, Dropout, Flatten
+from tensorflow.keras.layers import Conv2D, MaxPooling2D
+from tensorflow.keras import backend as K
+from keras.models import model_from_json
+
 import rclpy
 from rclpy.callback_groups import ReentrantCallbackGroup
 
 from sorter_msgs.srv import Sort
 
 from std_msgs.msg import UInt32
+
+from cv_bridge import CvBridge
+from sensor_msgs.msg import Image
+from std_msgs.msg import UInt32
+import cv2
+from cv_bridge import CvBridge
 
 
 class SortClient(Node):
@@ -107,15 +122,65 @@ class InverseClientNode(Node):
         self.publisher_.publish(self.msg)
      
 
+class MnistClientNode(Node):
+
+    def __init__(self, cycles):
+        super().__init__('Image')
+        self.cnt = cycles
+        self.bridge = CvBridge()        
+        self.publisher_ = self.create_publisher(Image, '/image_classification', 10)
+        self.img_rows, self.img_cols = 28, 28
+        (self.x_train, self.y_train), (self.x_test, self.y_test) = mnist.load_data()
+        
+        self.tstart = 0
+        self.tstop = 0    
+        self.subscription = self.create_subscription(UInt32,'/class',self.listener_callback,  10)
+        self.subscription  # prevent unused variable warning
+        timer_period = 0.001  # seconds
+        self.timer = self.create_timer(timer_period, self.timer_callback)
+        self.cnt = 0
+
+
+    def listener_callback(self, msg):
+        self.tstop = time.time()
+        self.get_logger().info('Data has arrived! {} ms'.format((self.tstop-self.tstart)*1000.0))
+        if self.cnt > 0:
+            if K.image_data_format() == 'channels_first':
+                self.x_test = self.x_test.reshape(self.x_test.shape[0], 1, self.img_rows, self.img_cols)
+            else:
+                self.x_test = self.x_test.reshape(self.x_test.shape[0], self.img_rows, self.img_cols , 1)
+            self.msg = self.bridge.cv2_to_imgmsg(np.array(self.x_test[random.randint(0,100)]), "mono8")
+
+            self.tstart = time.time()
+            self.publisher_.publish(self.msg)
+            self.cnt -= 1
+        
+
+    def timer_callback(self):
+        self.timer.cancel()
+
+        if K.image_data_format() == 'channels_first':
+            self.x_test = self.x_test.reshape(self.x_test.shape[0], 1, self.img_rows, self.img_cols)
+        else:
+            self.x_test = self.x_test.reshape(self.x_test.shape[0], self.img_rows, self.img_cols , 1)
+        self.msg = self.bridge.cv2_to_imgmsg(np.array(self.x_test[random.randint(0,100)]), "mono8")
+        self.tstart = time.time()
+        self.publisher_.publish(self.msg)
+        
+
+
+
 def main(args=None):
 
     cycles = 10
     rclpy.init(args=args)
     sort_client = SortClient(cycles)
     inverse_sub = InverseClientNode(cycles)
+    mnist_sub = MnistClientNode(cycles)
     executor = rclpy.executors.MultiThreadedExecutor()
-    executor.add_node(sort_client)
-    executor.add_node(inverse_sub)
+    #executor.add_node(sort_client)
+    #executor.add_node(inverse_sub)
+    executor.add_node(mnist_sub)
     # Spin in a separate thread
     executor_thread = threading.Thread(target=executor.spin, daemon=True)
     executor_thread.start()
