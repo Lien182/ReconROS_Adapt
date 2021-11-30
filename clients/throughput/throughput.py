@@ -20,42 +20,59 @@ from std_msgs.msg import UInt32
 
 class SortClient(Node):
 
-    def __init__(self):
+    def __init__(self, cycles):
         super().__init__('sorter_client')
 
         self.tstart = 0
         self.tstop = 0
-
+        self.cycles = cycles
+        timer_period = 0.001  # seconds
         cb_group = ReentrantCallbackGroup()
         self.cli = self.create_client(Sort, 'sorter', callback_group=cb_group)
         while not self.cli.wait_for_service(timeout_sec=4.0):
             self.get_logger().info('service not available, waiting again...')
         self.req = Sort.Request()
+        self.timer = self.create_timer(timer_period, self.timer_callback, callback_group=cb_group)
 
     def send_request(self):
 
-        self.get_logger().info('send_request!')
         self.req.unsorted =  random.sample(range(1, 100000), 2048)
         self.tstart = time.time()
-        self.future = self.cli.call(self.req)
+
+        event = threading.Event()
+
+        def unblock(future):
+            nonlocal event
+            event.set()
+
+        future = self.cli.call_async(self.req)
+        future.add_done_callback(unblock)
+
+        # Check future.done() before waiting on the event.
+        # The callback might have been added after the future is completed,
+        # resulting in the event never being set.
+        if not future.done():
+            event.wait()
+        if future.exception() is not None:
+            raise future.exception()       
+
+        self.future = future.result()
+
+        #self.future = self.cli.call(self.req)
         self.tstop = time.time()
         if self.future.sorted.tolist() == sorted(self.future.sorted):
             self.get_logger().info('Data is sorted! {} ms'.format((self.tstop-self.tstart)*1000.0))
         else:
             self.get_logger().info('Data is NOT sorted!')
 
-
-    def SortThread(self, cycles):
-        for i in range(0,cycles):
+    def timer_callback(self):
+        self.timer.cancel()
+        print("send request {}".format(self.cycles))
+        for i in range(0,self.cycles):
             self.send_request()                                    
         self.destroy_node()
 
-    def Run(self,cycles):
-        self.x = threading.Thread(target=self.SortThread, args=(cycles,))
-        self.x.start()       
 
-    def Join(self):
-        self.x.join()
 
 
 class InverseClientNode(Node):
@@ -92,16 +109,17 @@ class InverseClientNode(Node):
 
 def main(args=None):
 
+    cycles = 10
     rclpy.init(args=args)
-    sort_client = SortClient()
-    inverse_sub = InverseClientNode(10)
+    sort_client = SortClient(cycles)
+    inverse_sub = InverseClientNode(cycles)
     executor = rclpy.executors.MultiThreadedExecutor()
     executor.add_node(sort_client)
     executor.add_node(inverse_sub)
     # Spin in a separate thread
     executor_thread = threading.Thread(target=executor.spin, daemon=True)
     executor_thread.start()
-    sort_client.Run(10)
+
    # rate = node.create_rate(2)
     try:
         while rclpy.ok():
