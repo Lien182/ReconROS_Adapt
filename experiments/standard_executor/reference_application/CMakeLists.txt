@@ -12,13 +12,15 @@ endif()
 
 find_package(ament_cmake REQUIRED)
 find_package(mnist_msgs REQUIRED)
+find_package(sorter_msgs REQUIRED)
 find_package(sensor_msgs REQUIRED)
 find_package(rclcpp REQUIRED)
 
-add_executable(reference_application src/main.cpp)
-ament_target_dependencies(reference_application rclcpp mnist_msgs sensor_msgs)
+add_executable(standard_executor src/main.cpp)
+ament_target_dependencies(standard_executor rclcpp mnist_msgs sorter_msgs sensor_msgs)
+ament_export_include_directories(include)
 
-install(TARGETS service_main
+install(TARGETS standard_executor
   DESTINATION lib/${PROJECT_NAME})
 
 if(BUILD_TESTING)

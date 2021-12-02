@@ -76,7 +76,7 @@ class SortClient(Node):
         #self.future = self.cli.call(self.req)
         self.tstop = time.time()
         if self.future.sorted.tolist() == sorted(self.future.sorted):
-            self.get_logger().info('Data is sorted! {} ms'.format((self.tstop-self.tstart)*1000.0))
+            self.get_logger().info('Data is sorted (length={})! {} ms'.format(len(self.future.sorted), (self.tstop-self.tstart)*1000.0))
         else:
             self.get_logger().info('Data is NOT sorted!')
 
@@ -138,7 +138,6 @@ class MnistClientNode(Node):
         self.subscription  # prevent unused variable warning
         timer_period = 0.001  # seconds
         self.timer = self.create_timer(timer_period, self.timer_callback)
-        self.cnt = 0
 
 
     def listener_callback(self, msg):
@@ -150,7 +149,6 @@ class MnistClientNode(Node):
             else:
                 self.x_test = self.x_test.reshape(self.x_test.shape[0], self.img_rows, self.img_cols , 1)
             self.msg = self.bridge.cv2_to_imgmsg(np.array(self.x_test[random.randint(0,100)]), "mono8")
-
             self.tstart = time.time()
             self.publisher_.publish(self.msg)
             self.cnt -= 1
@@ -178,9 +176,9 @@ def main(args=None):
     inverse_sub = InverseClientNode(cycles)
     mnist_sub = MnistClientNode(cycles)
     executor = rclpy.executors.MultiThreadedExecutor()
-    #executor.add_node(sort_client)
+    executor.add_node(sort_client)
     #executor.add_node(inverse_sub)
-    executor.add_node(mnist_sub)
+    #executor.add_node(mnist_sub)
     # Spin in a separate thread
     executor_thread = threading.Thread(target=executor.spin, daemon=True)
     executor_thread.start()
