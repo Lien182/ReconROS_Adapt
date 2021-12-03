@@ -110,7 +110,6 @@ static inline float cos_lut(float a) {
 
 uint32_t calc_inverse(uint32_t input)
 {
-	printf("[Inverse] got data: %x \n", input);
 	float t_p2b_alpha = fitofl((input >> 17) & 0x3fff, 14, 6);
 	float t_p2b_beta  = fitofl((input >> 3) & 0x3fff, 14, 6);
 #if (DEBUG == 1) || (DEBUG_LIGHT == 1)
