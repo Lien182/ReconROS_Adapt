@@ -36,7 +36,7 @@ from cv_bridge import CvBridge
 class SortClient(Node):
 
     def __init__(self, cycles):
-        super().__init__('sorter_client')
+        super().__init__('SortClientNode')
 
         self.tstart = 0
         self.tstop = 0
@@ -76,7 +76,7 @@ class SortClient(Node):
         #self.future = self.cli.call(self.req)
         self.tstop = time.time()
         if self.future.sorted.tolist() == sorted(self.future.sorted):
-            self.get_logger().info('Data is sorted (length={})! {} ms'.format(len(self.future.sorted), (self.tstop-self.tstart)*1000.0))
+            self.get_logger().info('{} ms'.format((self.tstop-self.tstart)*1000.0))
         else:
             self.get_logger().info('Data is NOT sorted!')
 
@@ -93,7 +93,7 @@ class SortClient(Node):
 class InverseClientNode(Node):
 
     def __init__(self, cycles):
-        super().__init__('inverseclient')
+        super().__init__('InverseClientNode')
         
         self.cnt = cycles
         self.publisher_ = self.create_publisher(UInt32, '/angle', 10)
@@ -110,7 +110,7 @@ class InverseClientNode(Node):
 
     def listener_callback(self, msg):
         self.tstop = time.time()
-        self.get_logger().info('Data has arrived! {} ms'.format((self.tstop-self.tstart)*1000.0))
+        self.get_logger().info('{} ms'.format((self.tstop-self.tstart)*1000.0))
         if self.cnt > 0:
             self.tstart = time.time()
             self.publisher_.publish(self.msg)
@@ -125,7 +125,7 @@ class InverseClientNode(Node):
 class MnistClientNode(Node):
 
     def __init__(self, cycles):
-        super().__init__('Image')
+        super().__init__('MnistClientNode')
         self.cnt = cycles
         self.bridge = CvBridge()        
         self.publisher_ = self.create_publisher(Image, '/image_classification', 10)
@@ -142,7 +142,7 @@ class MnistClientNode(Node):
 
     def listener_callback(self, msg):
         self.tstop = time.time()
-        self.get_logger().info('Data has arrived! {} ms'.format((self.tstop-self.tstart)*1000.0))
+        self.get_logger().info('{} ms'.format((self.tstop-self.tstart)*1000.0))
         if self.cnt > 0:
             if K.image_data_format() == 'channels_first':
                 self.x_test = self.x_test.reshape(self.x_test.shape[0], 1, self.img_rows, self.img_cols)
@@ -175,10 +175,11 @@ def main(args=None):
     sort_client = SortClient(cycles)
     inverse_sub = InverseClientNode(cycles)
     mnist_sub = MnistClientNode(cycles)
+    
     executor = rclpy.executors.MultiThreadedExecutor()
     executor.add_node(sort_client)
-    #executor.add_node(inverse_sub)
-    #executor.add_node(mnist_sub)
+    executor.add_node(inverse_sub)
+    executor.add_node(mnist_sub)
     # Spin in a separate thread
     executor_thread = threading.Thread(target=executor.spin, daemon=True)
     executor_thread.start()
