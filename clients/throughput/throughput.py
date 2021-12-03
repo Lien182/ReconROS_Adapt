@@ -3,6 +3,7 @@ import rclpy
 from rclpy.node import Node
 from rclpy.client import Client
 from rclpy.qos import QoSProfile, QoSReliabilityPolicy, QoSHistoryPolicy
+from rclpy.callback_groups import ReentrantCallbackGroup
 
 import time
 import struct
@@ -19,19 +20,11 @@ from tensorflow.keras.layers import Conv2D, MaxPooling2D
 from tensorflow.keras import backend as K
 from keras.models import model_from_json
 
-import rclpy
-from rclpy.callback_groups import ReentrantCallbackGroup
-
-from sorter_msgs.srv import Sort
-
-from std_msgs.msg import UInt32
-
-from cv_bridge import CvBridge
-from sensor_msgs.msg import Image
-from std_msgs.msg import UInt32
 import cv2
 from cv_bridge import CvBridge
-
+from sorter_msgs.srv import Sort
+from std_msgs.msg import UInt32
+from sensor_msgs.msg import Image
 
 class SortClient(Node):
 
@@ -165,7 +158,40 @@ class MnistClientNode(Node):
         self.tstart = time.time()
         self.publisher_.publish(self.msg)
         
+class SobelClientNode(Node):
 
+    def __init__(self, cycles):
+        super().__init__('SobelClientNode')
+        self.cnt = cycles     
+        self.publisher_ = self.create_publisher(Image, 'image_raw', 10)
+        self.cv_image = cv2.imread('image.jpg') ### an RGB image 
+        self.bridge = CvBridge()
+        self.msg = self.bridge.cv2_to_imgmsg(np.array(self.cv_image), "bgr8")
+
+        self.tstart = 0
+        self.tstop = 0    
+        self.subscription = self.create_subscription(Image,'filtered',self.listener_callback,  10)
+        self.subscription  # prevent unused variable warning
+        timer_period = 0.001  # seconds
+        self.timer = self.create_timer(timer_period, self.timer_callback)
+        
+
+
+    def listener_callback(self, msg):
+        self.tstop = time.time()
+        self.get_logger().info('{} ms'.format((self.tstop-self.tstart)*1000.0))
+        if self.cnt > 0:
+            self.tstart = time.time()
+            print("Sobel")
+            self.publisher_.publish(self.msg)
+            self.cnt -= 1
+        
+
+    def timer_callback(self):
+        self.timer.cancel()
+        self.tstart = time.time()
+        print("Sobel")
+        self.publisher_.publish(self.msg)
 
 
 def main(args=None):
@@ -175,11 +201,13 @@ def main(args=None):
     sort_client = SortClient(cycles)
     inverse_sub = InverseClientNode(cycles)
     mnist_sub = MnistClientNode(cycles)
+    sobel_sub = SobelClientNode(cycles)
     
     executor = rclpy.executors.MultiThreadedExecutor()
     executor.add_node(sort_client)
     executor.add_node(inverse_sub)
     executor.add_node(mnist_sub)
+    executor.add_node(sobel_sub)
     # Spin in a separate thread
     executor_thread = threading.Thread(target=executor.spin, daemon=True)
     executor_thread.start()

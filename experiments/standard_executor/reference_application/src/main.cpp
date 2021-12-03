@@ -7,15 +7,17 @@
 #include "sensor_msgs/msg/image.hpp"
 
 using std::placeholders::_1;
+using std::placeholders::_2;
+using std::placeholders::_3;
 using Sort = sorter_msgs::srv::Sort;
-rclcpp::Node::SharedPtr g_node = nullptr;
 
 
 //Some functions are written in C
 extern "C"
 {
-  uint32_t calc_inverse(uint32_t input);
-  void    sort_bubble(uint32_t * ram);
+  uint32_t  calc_inverse(uint32_t input);
+  void      sort_bubble(uint32_t * ram);
+  void      calc_sobel(uint8_t * input, uint8_t * output);
 }
 
 
@@ -70,20 +72,59 @@ class MnistNode : public rclcpp::Node
 };
 
 
-void handle_service(
-  const std::shared_ptr<rmw_request_id_t> request_header,
-  const std::shared_ptr<Sort::Request> request,
-  const std::shared_ptr<Sort::Response> response)
+class SobelNode : public rclcpp::Node
 {
-  (void)request_header;
-  RCLCPP_INFO(g_node->get_logger(), "request: ");
-  
-  sort_bubble((uint32_t*)&request->unsorted[0]);
-  
-  for(int i = 0; i < 2048; i++)
-    response->sorted.push_back(request->unsorted[i]);
-  
-}
+  public:
+    SobelNode()
+    : Node("SobelNode")
+    {
+      RCLCPP_INFO(this->get_logger(), "SobelNode started");
+      publisher_ = this->create_publisher<sensor_msgs::msg::Image>("filtered", 10);
+      subscription_ = this->create_subscription<sensor_msgs::msg::Image>("/image_raw", 10, std::bind(&SobelNode::topic_callback, this, _1));
+    }
+
+  private:
+    void topic_callback(const sensor_msgs::msg::Image::SharedPtr msg) const
+    {
+      RCLCPP_INFO(this->get_logger(), "Sobel with input data %d", msg->data[0]);
+      sensor_msgs::msg::Image output_msg = *msg;
+      calc_sobel(&msg->data[0], &output_msg.data[0]);
+      publisher_->publish(output_msg);
+    }
+
+    rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr subscription_;
+    rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr publisher_;
+};
+
+class SortNode : public rclcpp::Node
+{
+  public:
+    SortNode()
+    : Node("SortNode")
+    {
+      RCLCPP_INFO(this->get_logger(), "SortNode started");
+      service_ = this->create_service<Sort>("sorter",std::bind(&SortNode::handle_service, this, _1, _2, _3));
+    }
+
+  private:
+    void handle_service(
+      const std::shared_ptr<rmw_request_id_t> request_header,
+      const std::shared_ptr<Sort::Request> request,
+      const std::shared_ptr<Sort::Response> response)
+      {
+        (void)request_header;
+        RCLCPP_INFO(this->get_logger(), "request: ");
+        
+        sort_bubble((uint32_t*)&request->unsorted[0]);
+        
+        for(int i = 0; i < 2048; i++)
+          response->sorted.push_back(request->unsorted[i]);
+      
+      }
+
+    rclcpp::Service<Sort>::SharedPtr service_;
+};
+
 
 int main(int argc, char ** argv)
 {
@@ -91,18 +132,17 @@ int main(int argc, char ** argv)
 
   rclcpp::executors::MultiThreadedExecutor executor;
 
-  g_node = rclcpp::Node::make_shared("sorter_node");
-  auto server = g_node->create_service<Sort>("sorter", handle_service);
-  
+  auto sortnode = std::make_shared<SortNode>();
   auto inversenode = std::make_shared<InverseNode>();
-  auto mnistenode  = std::make_shared<MnistNode>();
+  auto mnistnode   = std::make_shared<MnistNode>();
+  auto sobelnode   = std::make_shared<SobelNode>();
 
-  executor.add_node(g_node);
+  executor.add_node(sortnode);
   executor.add_node(inversenode);
-  executor.add_node(mnistenode);
+  executor.add_node(mnistnode);
+  executor.add_node(sobelnode);
 
   executor.spin();
   rclcpp::shutdown();
-  g_node = nullptr;
   return 0;
 }

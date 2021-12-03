@@ -16,7 +16,7 @@ find_package(sorter_msgs REQUIRED)
 find_package(sensor_msgs REQUIRED)
 find_package(rclcpp REQUIRED)
 
-add_executable(standard_executor src/main.cpp src/inverse/inverse.c src/sort/sort.c src/mnist/mnist.cpp src/mnist/pooling.cpp src/mnist/LeNet.cpp src/mnist/fullyconnected.cpp src/mnist/convolution.cpp src/mnist/activation.cpp)
+add_executable(standard_executor src/main.cpp src/inverse/inverse.c src/sort/sort.c src/mnist/mnist.cpp src/mnist/pooling.cpp src/mnist/LeNet.cpp src/mnist/fullyconnected.cpp src/mnist/convolution.cpp src/mnist/activation.cpp src/sobel/sobel.c)
 ament_target_dependencies(standard_executor rclcpp mnist_msgs sorter_msgs sensor_msgs)
 ament_export_include_directories(include)
 
