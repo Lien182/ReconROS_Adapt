@@ -86,9 +86,9 @@ class SobelNode : public rclcpp::Node
   private:
     void topic_callback(const sensor_msgs::msg::Image::SharedPtr msg) const
     {
-      RCLCPP_INFO(this->get_logger(), "Sobel with input data %d", msg->data[0]);
+      RCLCPP_INFO(this->get_logger(), "Sobel with input data ");
       sensor_msgs::msg::Image output_msg = *msg;
-      calc_sobel(&msg->data[0], &output_msg.data[0]);
+      //calc_sobel(&msg->data[0], &output_msg.data[0]);
       publisher_->publish(output_msg);
     }
 

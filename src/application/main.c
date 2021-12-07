@@ -33,6 +33,8 @@ extern void *rt_inverse(void *data);
 extern struct reconos_resource *resources_inverse[];
 extern void *rt_mnist(void *data);
 extern struct reconos_resource *resources_mnist[];
+extern void *rt_sobel(void *data);
+extern struct reconos_resource *resources_sobel[];
 t_reconros_executor reconros_executor;
 
 static void exit_signal(int sig) 
@@ -73,6 +75,8 @@ int main(int argc, char **argv)
 	reconos_init();
 	reconos_app_init();
 
+	init_msg();
+
 	signal(SIGINT, exit_signal);
 	signal(SIGTERM, exit_signal);
 	signal(SIGABRT, exit_signal);
@@ -85,9 +89,11 @@ int main(int argc, char **argv)
 	//ReconROS_Executor_Add_SW_Callback(&reconros_executor, "sortdemo", rt_sortdemo, ReconROS_SRV, rsort_srv, rsort_sort_srv_req, resources_sortdemo, 4);
 
 
-	ReconROS_Executor_Add_HW_Callback(&reconros_executor, "sortdemo", 0x1, 				ReconROS_SRV, rsort_srv, rsort_sort_srv_req, resources_sortdemo, 4);
+	ReconROS_Executor_Add_HW_Callback(&reconros_executor, "sortdemo", 	((1<<0) | (1<<1)), 	ReconROS_SRV, rsort_srv, rsort_sort_srv_req, resources_sortdemo, 4);
 	printf("ReconROS Callback added\n");
-	ReconROS_Executor_Add_HW_Callback(&reconros_executor, "mnist", 	((1<<2) | (1<<3)), 	ReconROS_SUB, rmnist_subdata, rmnist_image_msg, resources_mnist, 5);
+	ReconROS_Executor_Add_HW_Callback(&reconros_executor, "mnist", 		((1<<2) | (1<<3)), 	ReconROS_SUB, rmnist_subdata, rmnist_image_msg, resources_mnist, 5);
+	printf("ReconROS Callback added\n");
+	ReconROS_Executor_Add_HW_Callback(&reconros_executor, "sobel", 		((1<<0) | (1<<1)), 	ReconROS_SUB, rsobel_subdata, rsobel_image_msg, resources_sobel, 5);
 	printf("ReconROS Callback added\n");
 
 

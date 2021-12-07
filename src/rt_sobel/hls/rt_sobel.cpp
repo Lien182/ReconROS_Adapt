@@ -37,7 +37,8 @@ THREAD_ENTRY()
 	int32_t input_linebuffer[INPUT_LINEBUFFER_SIZE];
 	int32_t output_linebuffer[OUTPUT_LINEBUFFER_SIZE];;
 	
-	//#pragma HLS array_partition variable=input_linebuffer cyclic factor= dim=0
+	#pragma HLS array_partition variable=input_linebuffer cyclic factor=144 dim=0
+	#pragma HLS array_partition variable=output_linebuffer cyclic factor=16 dim=0
 
 	int32_t i,k,j, ii, jj;
 	int16_t tmp_x[4], tmp_y[4];
@@ -49,10 +50,10 @@ THREAD_ENTRY()
 	THREAD_INIT();
 
 	uint32_t pMessage = GET_INIT_DATA();	
-	MEM_READ(OFFSETOF(sensor_msgs__msg__Image, data.data) + pMessage,			input_payload_addr, 4);
+	MEM_READ(OFFSETOF(sensor_msgs__msg__Image, data.data) + pMessage,			input_payload_addr,		4);
 	
 	uint32_t output_buffer_addr = MEMORY_GETOBJECTADDR(rsobel_image_msg_out);
-	MEM_READ(OFFSETOF(sensor_msgs__msg__Image, data.data) + output_buffer_addr, output_payload_addr, 4);
+	MEM_READ(OFFSETOF(sensor_msgs__msg__Image, data.data) + output_buffer_addr, output_payload_addr, 	4);
 
 	//address <<=2;
 	MEM_READ( input_payload_addr[0], input_linebuffer, INPUT_PREFETCH_SIZE);
@@ -71,7 +72,7 @@ THREAD_ENTRY()
 		for(j = 1; j < (INPUT_WIDTH-1); j++)
 		{
 			#pragma HLS pipeline
-			#pragma HLS unroll factor=16
+			#pragma HLS unroll factor=4
 			tmp_x[0]= 0; tmp_y[0] = 0;
 			tmp_x[1]= 0; tmp_y[1] = 0;
 			tmp_x[2]= 0; tmp_y[2] = 0;

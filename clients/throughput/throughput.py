@@ -5,10 +5,12 @@ from rclpy.client import Client
 from rclpy.qos import QoSProfile, QoSReliabilityPolicy, QoSHistoryPolicy
 from rclpy.callback_groups import ReentrantCallbackGroup
 
+import sys
 import time
 import struct
 import random
 import os
+import queue
 import threading
 import numpy as np
 
@@ -25,6 +27,13 @@ from cv_bridge import CvBridge
 from sorter_msgs.srv import Sort
 from std_msgs.msg import UInt32
 from sensor_msgs.msg import Image
+
+
+sortclient_queue = queue.Queue()
+sobelclient_queue = queue.Queue()
+mnistclient_queue = queue.Queue()
+inverseclient_queue = queue.Queue()
+
 
 class SortClient(Node):
 
@@ -69,7 +78,8 @@ class SortClient(Node):
         #self.future = self.cli.call(self.req)
         self.tstop = time.time()
         if self.future.sorted.tolist() == sorted(self.future.sorted):
-            self.get_logger().info('{} ms'.format((self.tstop-self.tstart)*1000.0))
+            sortclient_queue.put((self.tstop-self.tstart)*1000.0)
+            print('sort, {} ms'.format((self.tstop-self.tstart)*1000.0))
         else:
             self.get_logger().info('Data is NOT sorted!')
 
@@ -103,7 +113,8 @@ class InverseClientNode(Node):
 
     def listener_callback(self, msg):
         self.tstop = time.time()
-        self.get_logger().info('{} ms'.format((self.tstop-self.tstart)*1000.0))
+        inverseclient_queue.put((self.tstop-self.tstart)*1000.0)
+        print('inverse, {} ms'.format((self.tstop-self.tstart)*1000.0))
         if self.cnt > 0:
             self.tstart = time.time()
             self.publisher_.publish(self.msg)
@@ -135,7 +146,8 @@ class MnistClientNode(Node):
 
     def listener_callback(self, msg):
         self.tstop = time.time()
-        self.get_logger().info('{} ms'.format((self.tstop-self.tstart)*1000.0))
+        mnistclient_queue.put((self.tstop-self.tstart)*1000.0)
+        print('mnist, {} ms'.format((self.tstop-self.tstart)*1000.0))
         if self.cnt > 0:
             if K.image_data_format() == 'channels_first':
                 self.x_test = self.x_test.reshape(self.x_test.shape[0], 1, self.img_rows, self.img_cols)
@@ -163,7 +175,7 @@ class SobelClientNode(Node):
     def __init__(self, cycles):
         super().__init__('SobelClientNode')
         self.cnt = cycles     
-        self.publisher_ = self.create_publisher(Image, 'image_raw', 10)
+        self.publisher_ = self.create_publisher(Image, '/image_raw', 10)
         self.cv_image = cv2.imread('image.jpg') ### an RGB image 
         self.bridge = CvBridge()
         self.msg = self.bridge.cv2_to_imgmsg(np.array(self.cv_image), "bgr8")
@@ -172,17 +184,17 @@ class SobelClientNode(Node):
         self.tstop = 0    
         self.subscription = self.create_subscription(Image,'filtered',self.listener_callback,  10)
         self.subscription  # prevent unused variable warning
-        timer_period = 0.001  # seconds
+        timer_period = 0.1  # seconds
         self.timer = self.create_timer(timer_period, self.timer_callback)
         
 
 
     def listener_callback(self, msg):
         self.tstop = time.time()
-        self.get_logger().info('{} ms'.format((self.tstop-self.tstart)*1000.0))
+        sobelclient_queue.put((self.tstop-self.tstart)*1000.0)
+        print('sobel, {} ms'.format((self.tstop-self.tstart)*1000.0))
         if self.cnt > 0:
             self.tstart = time.time()
-            print("Sobel")
             self.publisher_.publish(self.msg)
             self.cnt -= 1
         
@@ -190,38 +202,92 @@ class SobelClientNode(Node):
     def timer_callback(self):
         self.timer.cancel()
         self.tstart = time.time()
-        print("Sobel")
         self.publisher_.publish(self.msg)
 
+bLog = 1
+f = 0
+def printthread(cycles):
+    f = open("log.csv", "w")
+    cnt = 0
+    time.sleep(2.0)
+    block = True
+    to = 15  
+    sortclient_to = to
+    inverseclient_to = to
+    sobelclient_to = to
+    mnistclient_to = to
 
-def main(args=None):
+    while(cnt < cycles):
+        
+        try:
+            sortclient_element = sortclient_queue.get(block,timeout=sortclient_to)
+        except queue.Empty as error:
+            sortclient_element = -1
+            sortclient_to = 1
+            print("sortclient_queue: Timeout occurred {}".format(str(error)))
+        
+        try:
+            inverseclient_element = inverseclient_queue.get(block,timeout=inverseclient_to)
+        except queue.Empty as error:
+            inverseclient_element = -1
+            inverseclient_to = 1
+            print("inverseclient_queue: Timeout occurred {}".format(str(error)))
+        
+        try:
+            sobelclient_element = sobelclient_queue.get(block, timeout = sobelclient_to)
+        except queue.Empty as error:
+            sobelclient_element = -1
+            sobelclient_to = 1
+            print("sobelclient_queue: Timeout occurred {}".format(str(error)))
+        
+        try:
+            mnistclient_element = mnistclient_queue.get(block, timeout = mnistclient_to)
+        except queue.Empty as error:
+            mnistclient_element = -1
+            mnistclient_to = 1
+            print("mnistclient_queue: Timeout occurred {}".format(str(error)))
 
-    cycles = 10
-    rclpy.init(args=args)
+        f.write('{};{};{};{}; \n'.format(sortclient_element,inverseclient_element,sobelclient_element,mnistclient_element))
+
+        cnt += 1
+    f.close()
+    print("close log thread")
+
+def main(cycles):
+
+    print("Start experiment with {} cycles".format(cycles))
+    #cycles = 10
+    rclpy.init(args=None)
     sort_client = SortClient(cycles)
     inverse_sub = InverseClientNode(cycles)
-    mnist_sub = MnistClientNode(cycles)
     sobel_sub = SobelClientNode(cycles)
+    mnist_sub = MnistClientNode(cycles)
+
     
     executor = rclpy.executors.MultiThreadedExecutor()
     executor.add_node(sort_client)
     executor.add_node(inverse_sub)
-    executor.add_node(mnist_sub)
     executor.add_node(sobel_sub)
+    executor.add_node(mnist_sub)
+    
     # Spin in a separate thread
     executor_thread = threading.Thread(target=executor.spin, daemon=True)
     executor_thread.start()
 
+    tprintthread = threading.Thread(target=printthread, args=(cycles,))
+    tprintthread.start()
    # rate = node.create_rate(2)
-    try:
-        while rclpy.ok():
-            time.sleep(2)
-    except KeyboardInterrupt:
-        pass
+    #try:
+    #    while rclpy.ok():
+    #        time.sleep(2)
+   # except KeyboardInterrupt:
+    #    pass
+    tprintthread.join()
+    print("Log thread closed")
     rclpy.shutdown()
-    executor_thread.join()
+    
 
 
 
 if __name__ == '__main__':
-    main()
+    main(int(sys.argv[1]))
