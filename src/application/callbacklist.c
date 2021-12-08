@@ -27,7 +27,40 @@ int Callbacklist_Init(t_callback_lists * callback_lists)
 
 int Callbacklist_GetNextTimer(t_callback_lists * callback_lists, t_callback_list_element ** element, uint32_t u32SlotMask) // if slotmask is 0, return sw
 {
-    //printf("[Callbacklist_GetNextTimer] debug 0 \n");
+    //printf("[Callbacklist_GetNextTimer] debug -1, %x \n", callback_lists);
+    for(int i = 0; i < callback_lists->alRosTmrCnt; i++)
+    {
+        //printf("[Callbacklist_GetNextSubscriber] debug 0 \n");
+        if((u32SlotMask == 0 && callback_lists->alRosTmr[i].pSWCallback != 0 ) || (callback_lists->alRosTmr[i].nSlotMask & u32SlotMask))
+        {
+            //printf("[Callbacklist_GetNextSubscriber] debug 1 \n");
+            if(pthread_mutex_trylock(&(callback_lists->alRosTmr[i].object_lock)) == 0) // check if resource is free
+            {
+                //printf("[Callbacklist_GetNextSubscriber] debug 2 \n");
+                if(ros_timer_is_ready((struct ros_timer_t*)(callback_lists->alRosTmr[i].pReconROSPrimitive)) == 0) // if no 
+                {
+                    //printf("[Callbacklist_GetNextSubscriber] debug 3 \n");
+                    //we found a subscriber with a new message;
+                    *element = &callback_lists->alRosTmr[i];
+                    return 1;
+                }
+                else
+                {
+                    //printf("[Callbacklist_GetNextSubscriber] debug 4 \n");
+                    pthread_mutex_unlock(&(callback_lists->alRosTmr[i].object_lock));            
+                }
+
+            }
+            else 
+            {
+                continue;
+            }
+        }
+       
+
+    }
+    //printf("[Callbacklist_GetNextSubscriber] debug 5 \n");
+    return 0;
     return 0;
 }
 
@@ -143,7 +176,7 @@ int Callbacklist_GetSWCallback(t_callback_lists * callbacklists, function_ptr * 
 
     if(Callbacklist_GetNextTimer(callbacklists, &element, 0))
     {
-        printf("[Callbacklist_GetSWCallback] Got Timer Callback \n");
+        //printf("[Callbacklist_GetSWCallback] Got Timer Callback \n");
         *pCallback = element->pSWCallback;
         *ppMessage = element->pReconROSResultPrimitive;
 
@@ -151,7 +184,7 @@ int Callbacklist_GetSWCallback(t_callback_lists * callbacklists, function_ptr * 
     }
     else if(Callbacklist_GetNextSubscriber(callbacklists, &element, 0))
     {
-        printf("[Callbacklist_GetSWCallback] Got Subscriber Callback \n");
+        //printf("[Callbacklist_GetSWCallback] Got Subscriber Callback \n");
         *pCallback = element->pSWCallback;
         *ppMessage = element->pReconROSResultPrimitive;
 
@@ -159,7 +192,7 @@ int Callbacklist_GetSWCallback(t_callback_lists * callbacklists, function_ptr * 
     }
     else if(Callbacklist_GetNextService(callbacklists, &element, 0))
     {
-        printf("[Callbacklist_GetSWCallback] Got Service Callback \n");
+        //printf("[Callbacklist_GetSWCallback] Got Service Callback \n");
         *pCallback = element->pSWCallback;
         *ppMessage = element->pReconROSResultPrimitive;
 
@@ -167,7 +200,7 @@ int Callbacklist_GetSWCallback(t_callback_lists * callbacklists, function_ptr * 
     }
     else if(Callbacklist_GetNextClient(callbacklists, &element, 0))
     {
-        printf("[Callbacklist_GetSWCallback] Got Client Callback \n");
+        //printf("[Callbacklist_GetSWCallback] Got Client Callback \n");
         *pCallback = element->pSWCallback;
         *ppMessage = element->pReconROSResultPrimitive;
 
@@ -264,7 +297,7 @@ int Callbacklist_GetHWCallback(t_callback_lists * callbacklists, uint32_t nThrea
 
 int Callbacklist_Release(t_callback_lists * callbackliists, int id)
 {
-    printf("[Callbacklist_Release] release element\n");
+    //printf("[Callbacklist_Release] release element\n");
 
     for(int i = 0; i < callbackliists->alRosTmrCnt; i++)
     {

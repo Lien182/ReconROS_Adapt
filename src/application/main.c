@@ -35,6 +35,9 @@ extern void *rt_mnist(void *data);
 extern struct reconos_resource *resources_mnist[];
 extern void *rt_sobel(void *data);
 extern struct reconos_resource *resources_sobel[];
+extern void *rt_periodic(void *data);
+extern struct reconos_resource *resources_periodic[];
+
 t_reconros_executor reconros_executor;
 
 static void exit_signal(int sig) 
@@ -88,6 +91,11 @@ int main(int argc, char **argv)
 
 	//ReconROS_Executor_Add_SW_Callback(&reconros_executor, "sortdemo", rt_sortdemo, ReconROS_SRV, rsort_srv, rsort_sort_srv_req, resources_sortdemo, 4);
 
+	ReconROS_Executor_Add_SW_Callback(&reconros_executor, "periodic", rt_periodic, ReconROS_TMR, rperiodic_periodic_tmr, 0, resources_periodic, 2);
+
+	printf("ReconROS Callback added\n");
+
+
 
 	ReconROS_Executor_Add_HW_Callback(&reconros_executor, "sortdemo", 	((1<<0) | (1<<1)), 	ReconROS_SRV, rsort_srv, rsort_sort_srv_req, resources_sortdemo, 4);
 	printf("ReconROS Callback added\n");
@@ -95,7 +103,6 @@ int main(int argc, char **argv)
 	printf("ReconROS Callback added\n");
 	ReconROS_Executor_Add_HW_Callback(&reconros_executor, "sobel", 		((1<<0) | (1<<1)), 	ReconROS_SUB, rsobel_subdata, rsobel_image_msg, resources_sobel, 5);
 	printf("ReconROS Callback added\n");
-
 
 
 	ReconROS_Executor_Spin(&reconros_executor);
