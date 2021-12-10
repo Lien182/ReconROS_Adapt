@@ -16,8 +16,8 @@
 #include "ap_fixed.h"
 #include "hls_math.h"
 
-#define INPUT_WIDTH 1440 //Because of the brg format -< 24 bit per pixel
-#define INPUT_HEIGHT 1080
+#define INPUT_WIDTH 480 //Because of the brg format -< 24 bit per pixel
+#define INPUT_HEIGHT 480
 #define INPUT_LINEBUFFER_SIZE (INPUT_WIDTH * 4 * 4)
 #define INPUT_PREFETCH_SIZE	  (INPUT_WIDTH * 4 * 2)
 #define INPUT_LINESIZE (INPUT_WIDTH * 4)
