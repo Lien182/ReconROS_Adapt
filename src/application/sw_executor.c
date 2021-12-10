@@ -10,6 +10,8 @@ static void * ReconROS_SWExecutor_Agent(void * args)
 
     t_reconros_swexecutor * reconros_swexecutor = ( t_reconros_swexecutor *)args;
 
+	uint32_t nCallbackRetention = 0x40000000;
+
 	function_ptr pCallback;
 	void * message;
 
@@ -17,23 +19,19 @@ static void * ReconROS_SWExecutor_Agent(void * args)
 	{
 		//printf("[ReconROS_SWExecutor_Agent] Check the callback \n");
 
-		int callbackid = Callbacklist_GetSWCallback(reconros_swexecutor->callbacklists,&pCallback, &message);
+		int callbackid = Callbacklist_GetSWCallback(reconros_swexecutor->callbacklists, &nCallbackRetention, &pCallback, &message);
 		if(callbackid < 0)
 		{
 			usleep(10000);
 		}
 		else
 		{
-			printf("[ReconROS_SWExecutor_Agent] Going to execute the function \n");
+			//printf("[ReconROS_SWExecutor_Agent] Going to execute the function \n");
 			pCallback(message);
 			Callbacklist_Release(reconros_swexecutor->callbacklists, callbackid);
 		}
 
-
 	}
-
-
-
 	return 0;
 
 }
