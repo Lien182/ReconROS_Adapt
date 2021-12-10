@@ -18,6 +18,7 @@ extern "C"
   uint32_t  calc_inverse(uint32_t input);
   void      sort_bubble(uint32_t * ram);
   void      calc_sobel(uint8_t * input, uint8_t * output);
+  uint32_t  calc_periodic(uint32_t input);
 }
 
 
@@ -126,21 +127,48 @@ class SortNode : public rclcpp::Node
 };
 
 
+class PeriodicNode : public rclcpp::Node
+{
+  public:
+    PeriodicNode()
+    : Node("PeriodicNode")
+    {
+      RCLCPP_INFO(this->get_logger(), "PeriodicNode started");
+      publisher_ = this->create_publisher<std_msgs::msg::UInt32>("hash", 10);
+      timer_ = this->create_wall_timer( std::chrono::milliseconds(200), std::bind(&PeriodicNode::timer_callback, this));
+    }
+
+  private:
+    void timer_callback(void) const
+    {
+      RCLCPP_INFO(this->get_logger(), "Sobel with input data ");
+      auto output_msg = std_msgs::msg::UInt32();
+      output_msg.data = calc_periodic(time(0));
+      publisher_->publish(output_msg);
+    }
+
+    rclcpp::TimerBase::SharedPtr timer_;
+    rclcpp::Publisher<std_msgs::msg::UInt32>::SharedPtr publisher_;
+};
+
+
 int main(int argc, char ** argv)
 {
   rclcpp::init(argc, argv);
 
   rclcpp::executors::MultiThreadedExecutor executor;
 
-  auto sortnode = std::make_shared<SortNode>();
-  auto inversenode = std::make_shared<InverseNode>();
-  auto mnistnode   = std::make_shared<MnistNode>();
-  auto sobelnode   = std::make_shared<SobelNode>();
+  auto sortnode     = std::make_shared<SortNode>();
+  auto inversenode  = std::make_shared<InverseNode>();
+  auto mnistnode    = std::make_shared<MnistNode>();
+  auto sobelnode    = std::make_shared<SobelNode>();
+  auto periodicnode = std::make_shared<PeriodicNode>();
 
   executor.add_node(sortnode);
   executor.add_node(inversenode);
   executor.add_node(mnistnode);
   executor.add_node(sobelnode);
+  executor.add_node(periodicnode);
 
   executor.spin();
   rclcpp::shutdown();
