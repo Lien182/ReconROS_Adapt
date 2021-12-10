@@ -7,12 +7,11 @@
 
 static void * ReconROS_HWExecutor_Agent(void * args)
 {
-
-
-    int bytes_moved;
+	int bytes_moved;
     struct timespec t_start, t_end, t_res;
     t_reconros_hwexecutor * reconros_hwexecutor = ( t_reconros_hwexecutor *)args;
-
+	int callbackid_old = -1;
+	uint32_t nCallbackRetention = 0x40000000;
 
 	while(reconros_hwexecutor->bRun)
 	{
@@ -22,7 +21,7 @@ static void * ReconROS_HWExecutor_Agent(void * args)
 		void * message;
 
 		//printf("[ReconROS_HWExecutor_Agent %d] Check for HW callback \n", reconros_hwexecutor->uSlotid);
-		int callbackid = Callbacklist_GetHWCallback(reconros_hwexecutor->pCallbacklists, reconros_hwexecutor->uSlotMask, &hwthread, &bitstream, &message);
+		int callbackid = Callbacklist_GetHWCallback(reconros_hwexecutor->pCallbacklists, reconros_hwexecutor->uSlotMask, &nCallbackRetention, &hwthread, &bitstream, &message);
 		//printf("[ReconROS_HWExecutor_Agent %d] Hw callback checked; callbackid=%d \n",reconros_hwexecutor->uSlotid, callbackid);
 		if(callbackid < 0)
 		{
@@ -30,27 +29,24 @@ static void * ReconROS_HWExecutor_Agent(void * args)
 		}
 		else
 		{
-
-			clock_gettime(CLOCK_MONOTONIC, &t_start);
-			bytes_moved = Zycap_Write_Bitstream(reconros_hwexecutor->Zycap, bitstream);
-			clock_gettime(CLOCK_MONOTONIC, &t_end);
-			timespec_diff(&t_start, &t_end, &t_res);
-			printf("[ReconROS_HWExecutor_Agent %d] reconfiguration time %3.6f; bytes_moved = %d\n", reconros_hwexecutor->uSlotid, (double)(t_res.tv_nsec)/1000000000, bytes_moved);
-
-			//clock_gettime(CLOCK_MONOTONIC, &t_start);
-			//bytes_moved = Zycap_Write_Bitstream(reconros_hwexecutor->Zycap, ++bitstream);
-			//clock_gettime(CLOCK_MONOTONIC, &t_end);
-			//timespec_diff(&t_start, &t_end, &t_res);
-			//printf("[ReconROS_HWExecutor_Agent %d] reconfiguration time %3.6f; bytes_moved = %d\n", reconros_hwexecutor->uSlotid, (double)(t_res.tv_nsec)/1000000000, bytes_moved);
-
-			usleep(10000);
-
+			if(callbackid_old != callbackid)
+			{
+				clock_gettime(CLOCK_MONOTONIC, &t_start);
+				bytes_moved = Zycap_Write_Bitstream(reconros_hwexecutor->Zycap, bitstream);
+				clock_gettime(CLOCK_MONOTONIC, &t_end);
+				timespec_diff(&t_start, &t_end, &t_res);
+				printf("[ReconROS_HWExecutor_Agent %d] reconfiguration time %3.6f; bytes_moved = %d\n", reconros_hwexecutor->uSlotid, (double)(t_res.tv_nsec)/1000000000, bytes_moved);
+				usleep(10000);
+			}
+			else
+			{
+				printf("[ReconROS_HWExecutor_Agent %d] no reconfiguration needed since received bitstream still in the slot\n");
+			}
 
 			reconos_thread_setinitdata(hwthread, message);
-
-			printf("[ReconROS_HWExecutor_Agent %d] Going to execute the function \n", reconros_hwexecutor->uSlotid);
+			//printf("[ReconROS_HWExecutor_Agent %d] Going to execute the function \n", reconros_hwexecutor->uSlotid);
 			reconos_thread_resume(hwthread, reconros_hwexecutor->uSlotid);
-			printf("[ReconROS_HWExecutor_Agent %d] Wait for finishing \n", reconros_hwexecutor->uSlotid);
+			//printf("[ReconROS_HWExecutor_Agent %d] Wait for finishing \n", reconros_hwexecutor->uSlotid);
 			reconos_thread_join(hwthread);
 			//reconos_thread_suspend(hwthread);
 

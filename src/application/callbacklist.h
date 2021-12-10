@@ -21,6 +21,7 @@ typedef struct
     struct reconos_thread*      pSWthread;
     function_ptr                pSWCallback;
     void *                      args;
+    char *                      sCallbackName;
 }t_callback_list_element;
 
 typedef struct 
@@ -37,9 +38,9 @@ typedef struct
 
 int Callbacklist_Init(t_callback_lists * callback_lists);
 
-int Callbacklist_GetHWCallback(t_callback_lists * callbacklists, uint32_t nThreadSlotMask, struct reconos_thread ** reconos_hw_thread,  t_bitstream ** pBitstream, void ** ppMessage);
+int Callbacklist_GetHWCallback(t_callback_lists * callbacklists, uint32_t nThreadSlotMask,  uint32_t *nCallbackRetention, struct reconos_thread ** reconos_hw_thread,  t_bitstream ** pBitstream, void ** ppMessage);
 
-int Callbacklist_GetSWCallback(t_callback_lists * callbackliists, function_ptr * pCallback, void ** ppMessage);
+int Callbacklist_GetSWCallback(t_callback_lists * callbacklists, uint32_t *nCallbackRetention, function_ptr * pCallback, void ** ppMessage);
 
 int Callbacklist_Release(t_callback_lists * callbackliists, int id);
 

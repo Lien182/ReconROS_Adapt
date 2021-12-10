@@ -145,7 +145,6 @@ int ReconROS_Executor_Add_HW_Callback(t_reconros_executor * reconros_executor, c
         }
     }
 
-
     pCallback->bitstreams = malloc(sizeof(t_bitstream) * nSlotCnt);
     if(!pCallback->bitstreams)
     {
@@ -173,30 +172,25 @@ int ReconROS_Executor_Add_HW_Callback(t_reconros_executor * reconros_executor, c
     pCallback->eReconROSPrimitive = primitive;
     pCallback->pReconROSResultPrimitive = object_result;
     pCallback->nSlotMask = nSlotMask;
-    
+    pCallback->sCallbackName = CallbackName;
 
     pCallback->callback_id = reconros_executor->nCallbackIdCnt;
     reconros_executor->nCallbackIdCnt++;
     pthread_mutex_init(&pCallback->object_lock, 0);
-
-
-
 
     pCallback->pHWthread = (struct reconos_thread *)malloc(sizeof(struct reconos_thread));
 	if (!pCallback->pHWthread) {
 		printf("[ReconROS_Executor_Add_HW_Callback] ERROR: failed to allocate memory for thread\n");
         return -1;
 	}
-
-
-    
+   
 	reconos_thread_init(pCallback->pHWthread, CallbackName, 0);
 	reconos_thread_setinitdata(pCallback->pHWthread, 0); //later set: object ptr
 	reconos_thread_setallowedslots(pCallback->pHWthread, slots, nSlotCnt);
 	reconos_thread_setresourcepointers(pCallback->pHWthread, resources, resource_cnt);
 	//reconos_thread_create_auto(pCallback->pHWthread, RECONOS_THREAD_HW);
 
-
+    
     return 1;
 }
 
@@ -227,19 +221,25 @@ int ReconROS_Executor_Add_SW_Callback(t_reconros_executor * reconros_executor, c
     }
 
     if(pCallback == 0)
+    {
+        printf("[ReconROS_Executor_Add_SW_Callback] Could not find an empty entry in the callback list \n");
         return -1;
+    }
+
 
     pCallback->pReconROSPrimitive = object;
     pCallback->eReconROSPrimitive = primitive;
     pCallback->pReconROSResultPrimitive = object_result;
     pCallback->pSWCallback = pCallbackFunction;
-    
+    pCallback->sCallbackName = CallbackName;
+    pCallback->nSlotMask = 0;
+
     pCallback->callback_id = reconros_executor->nCallbackIdCnt;
     reconros_executor->nCallbackIdCnt++;
     
     pthread_mutex_init(&pCallback->object_lock, 0);
 
-    return 1;
+    return 0;
 }
 
 

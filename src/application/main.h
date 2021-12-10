@@ -30,8 +30,8 @@ void handle_commandline(int argc, char** argv);
 #define EXIT_FAULTY_RQ_RECV 5
 #define EXIT_SIGNAL_BASE 128
 
-#define IMAGE_HEIGHT 1080
-#define IMAGE_WIDTH 1920
+#define IMAGE_HEIGHT 480
+#define IMAGE_WIDTH 640
 
 
 typedef struct 
