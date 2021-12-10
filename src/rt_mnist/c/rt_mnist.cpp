@@ -40,9 +40,6 @@ extern "C" THREAD_ENTRY(); // this is required because of the mixture of c and c
 
 THREAD_ENTRY()
 {
-
-//#pragma HLS DATAFLOW
-
 	uint8_t image[INPUT_BATCH_SZ*INPUT_N_ROWS*INPUT_N_COLS];
 	float src[BUFFER_SIZE];
 	float dst[CLASSES];
@@ -51,75 +48,67 @@ THREAD_ENTRY()
 
 	THREAD_INIT();
 
+	uint32_t status = 0;
+	uint32_t payload_addr[1];
+	
+	uint32_t ram[INPUT_BATCH_SZ*INPUT_N_ROWS*INPUT_N_COLS/4];
 
-	while (1)
+	memcpy(ram, rmnist_image_msg->data.data, INPUT_N_ROWS*INPUT_N_COLS);
+
+	//memcpy(image, ram,  N_ROWS*N_COLS);
+	start = clock();
+
+	read_image(ram, image);
+
+	for(int i=0; i<1; i++)
 	{
-		uint32_t status = 0;
-		uint32_t payload_addr[1];
-		
-		uint32_t ram[INPUT_BATCH_SZ*INPUT_N_ROWS*INPUT_N_COLS/4];
-
-		uint32_t pMessage= ROS_SUBSCRIBE_TAKE(rmnist_subdata, rmnist_image_msg );
-		
-		memcpy(ram, rmnist_image_msg->data.data, INPUT_N_ROWS*INPUT_N_COLS);
-
-		//memcpy(image, ram,  N_ROWS*N_COLS);
-		start = clock();
-
-		read_image(ram, image);
-
-		for(int i=0; i<1; i++)
+		char tmp;
+		for(int batch=0; batch<1; batch++)
 		{
-			char tmp;
-			for(int batch=0; batch<1; batch++)
+			for(int rows = 0; rows < 32 ; rows++)
 			{
-				for(int rows = 0; rows < 32 ; rows++)
+				for(int cols = 0; cols < 32; cols++)
 				{
-					for(int cols = 0; cols < 32; cols++)
+					float scaled;
+					uint8_t temp;
+
+					if(cols<2 || rows<2 || cols>=30|| rows>=30)
 					{
-						float scaled;
-						uint8_t temp;
-
-						if(cols<2 || rows<2 || cols>=30|| rows>=30)
-						{
-							temp = 0;
-						}
-						else
-						{
-							temp = image[batch*1024+(rows-2)*28+cols-2];
-						}
-
-						scaled =  ((((float)temp * (float)2) / (float)255 )- (float)1 );
-						src[rows*INPUT_WH+cols] = (float)(scaled*DATA_CONVERT_MUL);
+						temp = 0;
+					}
+					else
+					{
+						temp = image[batch*1024+(rows-2)*28+cols-2];
 					}
 
+					scaled =  ((((float)temp * (float)2) / (float)255 )- (float)1 );
+					src[rows*INPUT_WH+cols] = (float)(scaled*DATA_CONVERT_MUL);
 				}
 
 			}
+
 		}
-		LeNet(src, dst, 0);
-
-		float result[CLASSES];
-
-		float max_num = -10000;
-		int max_id = 0;
-		for(int index=0; index<10; index++){
-			int tmp = dst[index];
-			result[index] = (float)tmp/(float)DATA_CONVERT_MUL;
-			if(result[index] > max_num){
-				max_num = result[index];
-				max_id = index;
-			}
-		}
-
-
-
-
-		rmnist_output_msg->data = max_id;
-		end = clock();
-		ROS_PUBLISH(rmnist_pubdata, rmnist_output_msg);			
-				
-		printf("%3.6f; \n", (double)(end-start)/CLOCKS_PER_SEC);
-				
 	}
+	LeNet(src, dst, 0);
+	float result[CLASSES];
+
+	float max_num = -10000;
+	int max_id = 0;
+	for(int index=0; index<10; index++){
+		int tmp = dst[index];
+		result[index] = (float)tmp/(float)DATA_CONVERT_MUL;
+		if(result[index] > max_num){
+			max_num = result[index];
+			max_id = index;
+		}
+	}
+
+	rmnist_output_msg->data = max_id;
+	end = clock();
+
+	ROS_PUBLISH(rmnist_pubdata, rmnist_output_msg);			
+			
+	printf("%3.6f; \n", (double)(end-start)/CLOCKS_PER_SEC);
+				
+	
 }
