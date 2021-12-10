@@ -40,4 +40,5 @@ void *rt_sortdemo(void *data) {
 
 	ROS_SERVICESERVER_SEND_RESPONSE(rsort_srv,rsort_sort_srv_res);
 
+	return 0;
 }
