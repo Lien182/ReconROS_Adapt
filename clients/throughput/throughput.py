@@ -43,7 +43,7 @@ class SortClient(Node):
         self.tstart = 0
         self.tstop = 0
         self.cycles = cycles
-        timer_period = 0.001  # seconds
+        timer_period = 0.2  # seconds
         cb_group = ReentrantCallbackGroup()
         self.cli = self.create_client(Sort, 'sorter', callback_group=cb_group)
         while not self.cli.wait_for_service(timeout_sec=4.0):
@@ -135,12 +135,16 @@ class MnistClientNode(Node):
         self.publisher_ = self.create_publisher(Image, '/image_classification', 10)
         self.img_rows, self.img_cols = 28, 28
         (self.x_train, self.y_train), (self.x_test, self.y_test) = mnist.load_data()
-        
+        if K.image_data_format() == 'channels_first':
+            self.x_test = self.x_test.reshape(self.x_test.shape[0], 1, self.img_rows, self.img_cols)
+        else:
+            self.x_test = self.x_test.reshape(self.x_test.shape[0], self.img_rows, self.img_cols , 1)
+        self.msg = self.bridge.cv2_to_imgmsg(np.array(self.x_test[random.randint(0,100)]), "mono8")
         self.tstart = 0
         self.tstop = 0    
         self.subscription = self.create_subscription(UInt32,'/class',self.listener_callback,  10)
         self.subscription  # prevent unused variable warning
-        timer_period = 0.001  # seconds
+        timer_period = 0.1  # seconds
         self.timer = self.create_timer(timer_period, self.timer_callback)
 
 
@@ -149,25 +153,15 @@ class MnistClientNode(Node):
         mnistclient_queue.put((self.tstop-self.tstart)*1000.0)
         print('mnist, {} ms'.format((self.tstop-self.tstart)*1000.0))
         if self.cnt > 0:
-            if K.image_data_format() == 'channels_first':
-                self.x_test = self.x_test.reshape(self.x_test.shape[0], 1, self.img_rows, self.img_cols)
-            else:
-                self.x_test = self.x_test.reshape(self.x_test.shape[0], self.img_rows, self.img_cols , 1)
-            self.msg = self.bridge.cv2_to_imgmsg(np.array(self.x_test[random.randint(0,100)]), "mono8")
             self.tstart = time.time()
             self.publisher_.publish(self.msg)
             self.cnt -= 1
-        
+     
 
     def timer_callback(self):
-        self.timer.cancel()
-
-        if K.image_data_format() == 'channels_first':
-            self.x_test = self.x_test.reshape(self.x_test.shape[0], 1, self.img_rows, self.img_cols)
-        else:
-            self.x_test = self.x_test.reshape(self.x_test.shape[0], self.img_rows, self.img_cols , 1)
-        self.msg = self.bridge.cv2_to_imgmsg(np.array(self.x_test[random.randint(0,100)]), "mono8")
+        self.timer.cancel()        
         self.tstart = time.time()
+        print('Mnist: send the first request')
         self.publisher_.publish(self.msg)
         
 class SobelClientNode(Node):
@@ -184,7 +178,7 @@ class SobelClientNode(Node):
         self.tstop = 0    
         self.subscription = self.create_subscription(Image,'filtered',self.listener_callback,  10)
         self.subscription  # prevent unused variable warning
-        timer_period = 0.1  # seconds
+        timer_period = 0.2  # seconds
         self.timer = self.create_timer(timer_period, self.timer_callback)
         
 
@@ -233,12 +227,13 @@ def printthread(cycles):
             inverseclient_to = 1
             print("inverseclient_queue: Timeout occurred {}".format(str(error)))
         
-        try:
-            sobelclient_element = sobelclient_queue.get(block, timeout = sobelclient_to)
-        except queue.Empty as error:
-            sobelclient_element = -1
-            sobelclient_to = 1
-            print("sobelclient_queue: Timeout occurred {}".format(str(error)))
+        sobelclient_element = 0
+        # try:
+        #     sobelclient_element = sobelclient_queue.get(block, timeout = sobelclient_to)
+        # except queue.Empty as error:
+        #     sobelclient_element = -1
+        #     sobelclient_to = 1
+        #     print("sobelclient_queue: Timeout occurred {}".format(str(error)))
         
         try:
             mnistclient_element = mnistclient_queue.get(block, timeout = mnistclient_to)
@@ -265,10 +260,11 @@ def main(cycles):
 
     
     executor = rclpy.executors.MultiThreadedExecutor()
+    executor.add_node(mnist_sub)
     executor.add_node(sort_client)
     executor.add_node(inverse_sub)
-    executor.add_node(sobel_sub)
-    executor.add_node(mnist_sub)
+    #executor.add_node(sobel_sub)
+
     
     # Spin in a separate thread
     executor_thread = threading.Thread(target=executor.spin, daemon=True)
