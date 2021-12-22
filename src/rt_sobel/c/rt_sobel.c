@@ -17,6 +17,8 @@
 
 #include "../../application/main.h"
 
+#define TIME_MEASUREMENT 0
+
 
 #define INPUT_WIDTH IMAGE_WIDTH/4*3 // because of the rgb8 format -> 24 bit per pixel
 #define INPUT_HEIGHT IMAGE_HEIGHT
@@ -44,6 +46,10 @@ THREAD_ENTRY()
 	uint8_t filter_pointer;
 
 	THREAD_INIT();
+
+#if TIME_MEASUREMENT == 1	
+	start = clock();
+#endif
 
 	uint32_t address = (uint32_t)rsobel_image_msg->data.data;
 	
@@ -91,8 +97,11 @@ THREAD_ENTRY()
 		MEM_WRITE_L( output_linebuffer , ((uint8_t*)rsobel_image_msg_out->data.data + i* OUTPUT_LINE_SIZE), INPUT_LINESIZE);
 		
 	}
-	
+#if TIME_MEASUREMENT == 1	
 	end = clock();
+#endif
 	ROS_PUBLISH(rsobel_pubdata, rsobel_image_msg_out);
+#if TIME_MEASUREMENT == 1
 	printf("%3.6f\n", (double)(end-start)/CLOCKS_PER_SEC);
+#endif
 }

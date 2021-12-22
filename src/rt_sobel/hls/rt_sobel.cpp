@@ -37,7 +37,7 @@ THREAD_ENTRY()
 	int32_t input_linebuffer[INPUT_LINEBUFFER_SIZE];
 	int32_t output_linebuffer[OUTPUT_LINEBUFFER_SIZE];;
 	
-	#pragma HLS array_partition variable=input_linebuffer cyclic factor=144 dim=0
+	#pragma HLS array_partition variable=input_linebuffer cyclic factor=9 dim=0
 	#pragma HLS array_partition variable=output_linebuffer cyclic factor=16 dim=0
 
 	int32_t i,k,j, ii, jj;
@@ -50,8 +50,7 @@ THREAD_ENTRY()
 	THREAD_INIT();
 
 	uint32_t pMessage = GET_INIT_DATA();	
-	MEM_READ(OFFSETOF(sensor_msgs__msg__Image, data.data) + pMessage,			input_payload_addr,		4);
-	
+	MEM_READ(OFFSETOF(sensor_msgs__msg__Image, data.data) + pMessage,			input_payload_addr,		4);	
 	uint32_t output_buffer_addr = MEMORY_GETOBJECTADDR(rsobel_image_msg_out);
 	MEM_READ(OFFSETOF(sensor_msgs__msg__Image, data.data) + output_buffer_addr, output_payload_addr, 	4);
 
@@ -63,12 +62,13 @@ THREAD_ENTRY()
 	for(i = 1; i < (INPUT_HEIGHT-1); i++)
 	{
 		#pragma hls dataflow
-		{
-			if(i > 1)
-				MEM_WRITE( output_linebuffer , (output_payload_addr[0] + (i-1)*OUTPUT_LINE_SIZE), INPUT_LINESIZE );
-			MEM_READ( input_payload_addr[0] , &(input_linebuffer[INPUT_WIDTH* ((i+1)&3)]) , INPUT_LINESIZE );
-			input_payload_addr[0] += (INPUT_WIDTH<<2);
-		}
+		
+		if(i > 1)
+			MEM_WRITE( output_linebuffer , (output_payload_addr[0] + (i-1)*OUTPUT_LINE_SIZE), INPUT_LINESIZE );
+		
+		MEM_READ( input_payload_addr[0] , &(input_linebuffer[INPUT_WIDTH* ((i+1)&3)]) , INPUT_LINESIZE );
+		input_payload_addr[0] += (INPUT_WIDTH<<2);
+		
 		for(j = 1; j < (INPUT_WIDTH-1); j++)
 		{
 			#pragma HLS pipeline
