@@ -164,7 +164,7 @@ int ReconROS_Executor_Add_HW_Callback(t_reconros_executor * reconros_executor, c
     for(int i = 0; i < nSlotCnt; i++)
     {
         sprintf(buf, "%s/pblock_slot_%d_%s_%d_partial.bit", reconros_executor->pBitstreamDir, slots[i], CallbackName, slots[i]);
-        printf("%s", buf);
+        printf("%s \n", buf);
         Zycap_Prefetch_Bitstream(buf, &pCallback->bitstreams[i]);
     }
 

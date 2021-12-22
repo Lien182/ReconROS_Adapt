@@ -1,15 +1,18 @@
+#include "time_measurement.h"
 #include "sw_executor.h"
 #include "executor.h"
 
 #include <stdio.h>
 #include <unistd.h>
+#include <time.h>
 
 
 static void * ReconROS_SWExecutor_Agent(void * args)
 {
 
     t_reconros_swexecutor * reconros_swexecutor = ( t_reconros_swexecutor *)args;
-
+    struct timespec t_start, t_end, t_res;
+	clock_t start, end;
 	uint32_t nCallbackRetention = 0x40000000;
 
 	function_ptr pCallback;
@@ -27,7 +30,14 @@ static void * ReconROS_SWExecutor_Agent(void * args)
 		else
 		{
 			//printf("[ReconROS_SWExecutor_Agent] Going to execute the function \n");
+			clock_gettime(CLOCK_MONOTONIC, &t_start);
+			start = clock();
 			pCallback(message);
+			end = clock();
+			clock_gettime(CLOCK_MONOTONIC, &t_end);
+			timespec_diff(&t_start, &t_end, &t_res);
+			//printf("[ReconROS_SWExecutor_Agent %d] execution time: %3.6f (%3.6f) \n", reconros_swexecutor->id, (double)(t_res.tv_nsec)/1000000000, ((double) (end - start)) / CLOCKS_PER_SEC);
+	
 			Callbacklist_Release(reconros_swexecutor->callbacklists, callbackid);
 		}
 
@@ -49,9 +59,40 @@ int ReconROS_SWExecutor_Init(t_reconros_swexecutor * reconros_swexecutor, t_call
 int ReconROS_SWExecutor_Spin(t_reconros_swexecutor * reconros_swexecutor)
 {
 
+	struct sched_param param;
+	pthread_attr_t attr;
+	int ret;
+
+	/* Initialize pthread attributes (default values) */
+	ret = pthread_attr_init(&attr);
+	if (ret) {
+			printf("init pthread attributes failed\n");
+			return;
+	}
+
+	/* Set scheduler policy and priority of pthread */
+	ret = pthread_attr_setschedpolicy(&attr, SCHED_FIFO);
+	if (ret) {
+			printf("pthread setschedpolicy failed\n");
+			return;
+	}
+	param.sched_priority = 80;
+	ret = pthread_attr_setschedparam(&attr, &param);
+	if (ret) 
+	{
+		printf("pthread setschedparam failed\n");
+		return;
+	}
+	/* Use scheduling parameters of attr */
+	ret = pthread_attr_setinheritsched(&attr, PTHREAD_EXPLICIT_SCHED);
+	if (ret) {
+		printf("pthread setinheritsched failed\n");
+			return;
+	}
+
 	reconros_swexecutor->bRun = 1UL;
 
-	if (pthread_create(&reconros_swexecutor->ptAgent, NULL, ReconROS_SWExecutor_Agent, (void*)reconros_swexecutor) != 0) 
+	if (pthread_create(&reconros_swexecutor->ptAgent, &attr, ReconROS_SWExecutor_Agent, (void*)reconros_swexecutor) != 0) 
 	{
 		return -1;
     }

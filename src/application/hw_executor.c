@@ -1,6 +1,7 @@
 #include "hw_executor.h"
 #include <time.h>
 #include <stdio.h>
+#include <unistd.h>
 #include "time_measurement.h"
 
 
@@ -25,32 +26,36 @@ static void * ReconROS_HWExecutor_Agent(void * args)
 		//printf("[ReconROS_HWExecutor_Agent %d] Hw callback checked; callbackid=%d \n",reconros_hwexecutor->uSlotid, callbackid);
 		if(callbackid < 0)
 		{
-			usleep(10000);
+			usleep(1000);
 		}
 		else
 		{
-			if(callbackid_old != callbackid)
+			if(callbackid_old != callbackid) //The reconfiguration should only be done if a different bitstream is requested
 			{
 				clock_gettime(CLOCK_MONOTONIC, &t_start);
 				bytes_moved = Zycap_Write_Bitstream(reconros_hwexecutor->Zycap, bitstream);
 				clock_gettime(CLOCK_MONOTONIC, &t_end);
 				timespec_diff(&t_start, &t_end, &t_res);
-				printf("[ReconROS_HWExecutor_Agent %d] reconfiguration time %3.6f; bytes_moved = %d\n", reconros_hwexecutor->uSlotid, (double)(t_res.tv_nsec)/1000000000, bytes_moved);
+				//printf("[ReconROS_HWExecutor_Agent %d] reconfiguration time %3.6f; bytes_moved = %d\n", reconros_hwexecutor->uSlotid, (double)(t_res.tv_nsec)/1000000000, bytes_moved);
 				usleep(10000);
 			}
 			else
 			{
-				printf("[ReconROS_HWExecutor_Agent %d] no reconfiguration needed since received bitstream still in the slot\n");
+				;//printf("[ReconROS_HWExecutor_Agent %d] no reconfiguration needed since received bitstream still in the slot\n", reconros_hwexecutor->uSlotid);
 			}
 
+			callbackid_old = callbackid;
+
+			clock_gettime(CLOCK_MONOTONIC, &t_start);
 			reconos_thread_setinitdata(hwthread, message);
 			//printf("[ReconROS_HWExecutor_Agent %d] Going to execute the function \n", reconros_hwexecutor->uSlotid);
 			reconos_thread_resume(hwthread, reconros_hwexecutor->uSlotid);
 			//printf("[ReconROS_HWExecutor_Agent %d] Wait for finishing \n", reconros_hwexecutor->uSlotid);
 			reconos_thread_join(hwthread);
 			//reconos_thread_suspend(hwthread);
-
-			
+			clock_gettime(CLOCK_MONOTONIC, &t_end);
+			timespec_diff(&t_start, &t_end, &t_res);
+			//printf("[ReconROS_HWExecutor_Agent %d] execution time: %3.6f \n", reconros_hwexecutor->uSlotid, (double)(t_res.tv_nsec)/1000000000);
 			Callbacklist_Release(reconros_hwexecutor->pCallbacklists, callbackid);
 		}
 	}
@@ -76,12 +81,42 @@ int ReconROS_HWExecutor_Init(t_reconros_hwexecutor * reconros_hwexecutor, t_zyca
 
 int ReconROS_HWExecutor_Spin(t_reconros_hwexecutor * reconros_hwexecutor)
 {
+	struct sched_param param;
+	pthread_attr_t attr;
+	int ret;
 
-	printf("test \n");
+	/* Initialize pthread attributes (default values) */
+	ret = pthread_attr_init(&attr);
+	if (ret) {
+			printf("init pthread attributes failed\n");
+			return;
+	}
+
+	/* Set scheduler policy and priority of pthread */
+	ret = pthread_attr_setschedpolicy(&attr, SCHED_FIFO);
+	if (ret) {
+			printf("pthread setschedpolicy failed\n");
+			return;
+	}
+	param.sched_priority = 90;
+	ret = pthread_attr_setschedparam(&attr, &param);
+	if (ret) 
+	{
+		printf("pthread setschedparam failed\n");
+		return;
+	}
+	/* Use scheduling parameters of attr */
+	ret = pthread_attr_setinheritsched(&attr, PTHREAD_EXPLICIT_SCHED);
+	if (ret) {
+		printf("pthread setinheritsched failed\n");
+			return;
+	}
+
+
 	reconros_hwexecutor->bRun = 1UL;
 	printf("[ReconROS_HWExecutor_Spin] start agent for slot id %d \n", reconros_hwexecutor->uSlotid);
 
-	if(pthread_create(&reconros_hwexecutor->ptAgent, 0, ReconROS_HWExecutor_Agent, (void*)reconros_hwexecutor) != 0)
+	if(pthread_create(&reconros_hwexecutor->ptAgent, &attr, ReconROS_HWExecutor_Agent, (void*)reconros_hwexecutor) != 0)
 	{
 		printf("[ReconROS_HWExecutor_Spin] Failed to create agent for slot %d \n", reconros_hwexecutor->uSlotid);
 		return -1;
