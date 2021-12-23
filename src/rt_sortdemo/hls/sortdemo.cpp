@@ -24,13 +24,18 @@
 void sort_bubble(uint32_t ram[BLOCK_SIZE]) {
 	unsigned int i, j;
 	uint32_t tmp;
+	uint32_t prev_val;
+	uint32_t next_val;
 	for (i = 0; i < BLOCK_SIZE; i++) {
+		prev_val = ram[0];
 		for (j = 0; j < BLOCK_SIZE - 1; j++) {
-			if (ram[j] > ram[j + 1]) {
-				tmp = ram[j];
-				ram[j] = ram[j + 1];
-				ram[j + 1] = tmp;
+			#pragma HLS pipeline
+			next_val = ram[j + 1];
+			if (prev_val > next_val) {
+				ram[j] = next_val;
+				ram[j + 1] = prev_val;
 			}
+			prev_val = next_val;
 		}
 	}
 }
@@ -38,14 +43,19 @@ void sort_bubble(uint32_t ram[BLOCK_SIZE]) {
 void sort_net(uint32_t ram[BLOCK_SIZE]) {
 	unsigned int i, k, stage;
 	uint32_t tmp;
+	uint32_t prev_val;
+	uint32_t next_val;
 
 	for(stage = 1; stage <= BLOCK_SIZE; stage++){
 		k = (stage % 2 == 1) ? 0 : 1;
 		for(i = k; i < BLOCK_SIZE - 1; i += 2){
-			if (ram[i] > ram[i + 1]) {
-				tmp = ram[i];
-				ram[i] = ram[i + 1];
-				ram[i + 1] = tmp;
+			#pragma HLS unroll factor=8
+			#pragma HLS pipeline
+			ram[i] = prev_val;
+			ram[i + 1] = next_val;
+			if (prev_val > ram[i + 1]) {
+				ram[i] = next_val;
+				ram[i + 1] = prev_val;
 			}
 		}
 	}
@@ -53,6 +63,7 @@ void sort_net(uint32_t ram[BLOCK_SIZE]) {
 
 THREAD_ENTRY() {
 	RAM(uint32_t, BLOCK_SIZE, ram);
+	#pragma HLS array_partition variable=ram cyclic factor=16 dim=0
 	uint32_t addr, initdata;	
 	uint32_t pMessage;
 	uint32_t payload_addr[1];
@@ -65,7 +76,7 @@ THREAD_ENTRY() {
 	MEM_READ(addr, payload_addr, 4);					//Get the address of the data
 	MEM_READ(payload_addr[0], ram, BLOCK_SIZE * 4);
 
-	sort_bubble(ram);
+	sort_net(ram);
 	MEM_WRITE(ram, payload_addr[0], BLOCK_SIZE * 4);
 
 	ROS_SERVICESERVER_SEND_RESPONSE(rsort_srv,rsort_sort_srv_res);
