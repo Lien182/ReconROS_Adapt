@@ -21,7 +21,7 @@ THREAD_ENTRY()
 	sha256_init(&ctx);
 
 	memcpy(buf, (BYTE*)&arg, 4);
-	for(int i = 0; i < 4; i++)
+	for(int i = 0; i < 10000; i++)
 	{
 		sha256_update(&ctx, buf, SHA256_BLOCK_SIZE);
 		sha256_final(&ctx, buf);
