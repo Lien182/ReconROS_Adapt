@@ -5,6 +5,9 @@
 #include <memory.h>
 #include <stddef.h>
 
+#include <std_msgs/msg/u_int32_multi_array.h>
+
+
 /****************************** MACROS ******************************/
 #define SHA256_BLOCK_SIZE 32            // SHA256 outputs a 32 byte digest
 
@@ -155,8 +158,6 @@ void sha256_final(SHA256_CTX *ctx, BYTE hash[])
 			#pragma hls unroll
 			ctx->data[i] = 0;
 		}
-		
-		//memset(ctx->data, 0, 56);
 	}
 
 	// Append to the padding the total message's length in bits and transform.
@@ -187,39 +188,123 @@ void sha256_final(SHA256_CTX *ctx, BYTE hash[])
 }
 
 
+
+void sha256(hls::stream<uint32_t> &in, uint32_t len, hls::stream<uint32_t> &out)
+{
+// We work on buffers of up to 64 bytes - hard-coded into SHA256 algorithm
+	unsigned char seg_buf[64];	   // 64byte segment buffer
+	unsigned int seg_offset = 0;   // progress thru the region of interest
+	int i=0;
+	unsigned int n = len;
+
+
+	// Initialize the SHA256 context
+	SHA256_CTX sha256ctx;
+	sha256_init(&sha256ctx);
+
+	// Process the data (byte at a time...)
+	for(int j = 0; j < 128; j++)
+	{
+
+		for (i=0; i<64; i+=4)
+		{
+			uint32_t tmp = in.read();
+			seg_buf[i] 	 = (uint8_t)tmp;
+			seg_buf[i+1] = (uint8_t)tmp >> 8;
+			seg_buf[i+2] = (uint8_t)tmp >> 16;
+			seg_buf[i+3] = (uint8_t)tmp >> 24;
+		}
+		n -= 64;
+		seg_offset += 64;
+		sha256_update(&sha256ctx, seg_buf, 64);
+
+	}
+
+	// Finish computing the hash (recycle FPGAbuf), and copy results back to proc mem
+	sha256_final(&sha256ctx, seg_buf);
+
+	for (i=0; i<32; i+=4) {
+#pragma HLS UNROLL
+		out.write((uint32_t)seg_buf[i] | ((uint32_t)seg_buf[i+1] << 8) | ((uint32_t)seg_buf[i+2] << 16) | ((uint32_t)seg_buf[i+3] << 24));
+	}
+}
+
+
+void MEM_READ_TO_STREAM(hls::stream<uint32_t> &memif_hwt2mem, hls::stream<uint32_t> &memif_mem2hwt, uint32_t src, hls::stream<uint32_t> &dst, uint32_t len){
+	uint32_t __len, __rem;
+	uint32_t __addr = (src), __i = 0;
+	for (__rem = (len); __rem > 0;) {
+		uint32_t __to_border = MEMIF_CHUNK_BYTES - (__addr & MEMIF_CHUNK_MASK);
+		uint32_t __to_rem = __rem;
+		if (__to_rem < __to_border)
+			__len = __to_rem;
+		else
+			__len = __to_border;
+
+		stream_write(memif_hwt2mem, MEMIF_CMD_READ | __len);
+		stream_write(memif_hwt2mem, __addr);
+		
+		for (; __len > 0; __len -= 4) {
+		#pragma hls pipeline
+			dst.write(memif_mem2hwt.read());
+			__addr += 4;
+			__rem -= 4;
+		}
+	}
+}
+
+void MEM_WRITE_FROM_STREAM(hls::stream<uint32_t> &memif_hwt2mem, hls::stream<uint32_t> &memif_mem2hwt, hls::stream<uint32_t> &src, uint32_t dst, uint32_t len)
+{
+	uint32_t __len, __rem;
+	uint32_t __addr = (dst), __i = 0;
+	for (__rem = (len); __rem > 0;) {
+		uint32_t __to_border = MEMIF_CHUNK_BYTES - (__addr & MEMIF_CHUNK_MASK);
+		uint32_t __to_rem = __rem;
+		if (__to_rem < __to_border)
+			__len = __to_rem;
+		else
+			__len = __to_border;
+		
+		stream_write(memif_hwt2mem, MEMIF_CMD_WRITE | __len);
+		stream_write(memif_hwt2mem, __addr);
+
+		for (; __len > 0; __len -= 4) {
+			#pragma hls pipeline
+			uint32_t tmp = src.read();
+			memif_hwt2mem.write(tmp);
+			__addr += 4;
+			__rem -= 4;
+		}
+	}
+}
+
+static void dataflow(hls::stream<uint32_t> &memif_hwt2mem, hls::stream<uint32_t> &memif_mem2hwt, uint32_t inputdata_adr, uint32_t outdata_adr)
+{
+	
+	hls::stream<uint32_t> inputstream;
+	hls::stream<uint32_t> outputstream;
+
+	#pragma HLS STREAM variable=inputstream depth=2048 dim=1
+	#pragma HLS STREAM variable=outputstream depth=64 dim=1
+	
+	#pragma hls dataflow
+	MEM_READ_TO_STREAM(memif_hwt2mem, memif_mem2hwt, inputdata_adr, inputstream, 2048 * 4);
+	sha256(inputstream, 2048 * 4,  outputstream);
+	MEM_WRITE_FROM_STREAM(memif_hwt2mem, memif_mem2hwt, outputstream, outdata_adr, 8*4);
+}
+
+
 THREAD_ENTRY()
 {
 	THREAD_INIT();
+	uint32_t output_payload_addr[1];
 	uint32_t arg = (uint32_t)GET_INIT_DATA();
-
+	uint32_t inputdata_adr = MEMORY_GETMEMORYADDR(rperiodic_srcmem);
 	uint32_t outputmsg_adr = MEMORY_GETOBJECTADDR(rperiodic_pub_out);
+	outputmsg_adr += OFFSETOF(std_msgs__msg__UInt32MultiArray, data.data);
+	MEM_READ(outputmsg_adr, output_payload_addr, 4);					
 
-	BYTE buf[SHA256_BLOCK_SIZE];
-	#pragma HLS array_partition variable=buf cyclic factor=32 dim=0
-	SHA256_CTX ctx;
-	#pragma HLS array_partition variable=ctx.data cyclic factor=64 dim=0
-	#pragma HLS array_partition variable=ctx.state dim=0
-	int idx;
-	int pass = 1;
-
-	sha256_init(&ctx);
-
-	buf[0] = (BYTE)(arg);
-	buf[1] = (BYTE)(arg >> 8);
-	buf[2] = (BYTE)(arg >> 16);
-	buf[3] = (BYTE)(arg >> 24);
-
-	for(int i = 0; i < 10000; i++)
-	{
-		#pragma HLS inline region
-		#pragma hls dataflow
-		sha256_update(&ctx, buf, SHA256_BLOCK_SIZE);
-		sha256_final(&ctx, buf);
-	}
-
-	uint32_t outputdata[1];
-	outputdata[0] = (uint32_t)buf[0] + ((uint32_t)buf[1]) << 8 + ((uint32_t)buf[2]) << 16 + ((uint32_t)buf[3]) << 24;
-	MEM_WRITE(outputdata, outputmsg_adr,4);
+	dataflow(memif_hwt2mem, memif_mem2hwt, inputdata_adr, output_payload_addr[0]);
 	ap_wait();
 	ROS_PUBLISH(rperiodic_pub_out, rperiodic_output_msg );
 	ap_wait();
