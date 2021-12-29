@@ -200,7 +200,7 @@ void sha256(uint32_t * in, uint32_t len, uint32_t * out)
 	sha256_init(&sha256ctx);
 
 	// Process the data (byte at a time...)
-	for(int j = 0; j < 128; j++)
+	for(int j = 0; j < 1555200/64; j++)
 	{
 
 		for (i=0; i<64; i+=4)
@@ -234,7 +234,7 @@ THREAD_ENTRY()
 	THREAD_INIT();
 	uint32_t arg = (uint32_t)GET_INIT_DATA();
 	printf("rperiodic_srcmem->data = %x\n", rperiodic_srcmem->data);
-	sha256(rperiodic_srcmem->data, 2048, rperiodic_output_msg->data.data);
+	sha256(rperiodic_srcmem->data, 1555200, rperiodic_output_msg->data.data);
 	ROS_PUBLISH(rperiodic_pub_out,rperiodic_output_msg );
 	
 }
