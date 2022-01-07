@@ -3,8 +3,8 @@
 #include <stdint.h>
 #include <string.h>
 
-#define IMAGE_HEIGHT 1080
-#define IMAGE_WIDTH 1920
+#define IMAGE_HEIGHT 480
+#define IMAGE_WIDTH 640
 
 #define INPUT_WIDTH IMAGE_WIDTH/4*3 // because of the rgb8 format -> 24 bit per pixel
 #define INPUT_HEIGHT IMAGE_HEIGHT

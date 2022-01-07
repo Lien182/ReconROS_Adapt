@@ -22,8 +22,14 @@ def generate_launch_description():
         node_executable="sort_client",
         output='screen'
     )
+    periodic_client = Node(
+        package="reference_application_periodic_client",
+        node_executable="periodic_client",
+        output='screen'
+    )
     ld.add_action(inverse_client)
     ld.add_action(mnist_client)
     ld.add_action(sobel_client)
     ld.add_action(sort_client)
+    ld.add_action(periodic_client)
     return ld

@@ -1,0 +1,5 @@
+ReconROS: (ReconROS) all threads except for periodic in hw + periodic topic "hash" logged
+
+ReconROS_HW: (ReconROS) all threads in hw, sobel and periodic share one slot + periodic topic "hash" logged
+
+Default:  (Standard Executor) all threads except for periodic in hw + periodic topic "hash" logged

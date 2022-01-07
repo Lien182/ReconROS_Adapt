@@ -86,8 +86,8 @@ int main(int argc, char **argv)
       uint32_t sorted = 1;
       for(int i = 1; i < 2048; i++)
       {
-        if(result.get()->sorted[i-1] > result.get()->sorted[i])
-          sorted = 0;
+        //if(result.get()->sorted[i-1] > result.get()->sorted[i])
+        //  sorted = 0;
       }
     } 
     else 

@@ -4,6 +4,7 @@
 #include "sorter_msgs/srv/sort.hpp"
 #include "rclcpp/rclcpp.hpp"
 #include "std_msgs/msg/u_int32.hpp"
+#include "std_msgs/msg/u_int32_multi_array.hpp"
 #include "sensor_msgs/msg/image.hpp"
 
 using std::placeholders::_1;
@@ -18,7 +19,7 @@ extern "C"
   uint32_t  calc_inverse(uint32_t input);
   void      sort_bubble(uint32_t * ram);
   void      calc_sobel(uint8_t * input, uint8_t * output);
-  uint32_t  calc_periodic(uint32_t input);
+  void sha256(uint32_t * in, uint32_t len, uint32_t * out);
 }
 
 
@@ -38,7 +39,7 @@ class InverseNode : public rclcpp::Node
   private:
     void topic_callback(const std_msgs::msg::UInt32::SharedPtr msg) const
     {
-      RCLCPP_INFO(this->get_logger(), "Inverse Client with input data %d", msg->data);
+      //RCLCPP_INFO(this->get_logger(), "Inverse Client with input data %d", msg->data);
       auto output_msg = std_msgs::msg::UInt32();
       output_msg.data = calc_inverse(msg->data);
       publisher_->publish(output_msg);
@@ -62,7 +63,7 @@ class MnistNode : public rclcpp::Node
   private:
     void topic_callback(const sensor_msgs::msg::Image::SharedPtr msg) const
     {
-      RCLCPP_INFO(this->get_logger(), "Mnist  with input data %d", msg->data[0]);
+     // RCLCPP_INFO(this->get_logger(), "Mnist  with input data %d", msg->data[0]);
       auto output_msg = std_msgs::msg::UInt32();
       output_msg.data = calc_mnist(&msg->data[0]);
       publisher_->publish(output_msg);
@@ -87,9 +88,9 @@ class SobelNode : public rclcpp::Node
   private:
     void topic_callback(const sensor_msgs::msg::Image::SharedPtr msg) const
     {
-      RCLCPP_INFO(this->get_logger(), "Sobel with input data ");
+      //RCLCPP_INFO(this->get_logger(), "Sobel with input data ");
       sensor_msgs::msg::Image output_msg = *msg;
-      //calc_sobel(&msg->data[0], &output_msg.data[0]);
+      calc_sobel(&msg->data[0], &output_msg.data[0]);
       publisher_->publish(output_msg);
     }
 
@@ -114,7 +115,7 @@ class SortNode : public rclcpp::Node
       const std::shared_ptr<Sort::Response> response)
       {
         (void)request_header;
-        RCLCPP_INFO(this->get_logger(), "request: ");
+        //RCLCPP_INFO(this->get_logger(), "request: ");
         
         sort_bubble((uint32_t*)&request->unsorted[0]);
         
@@ -134,21 +135,28 @@ class PeriodicNode : public rclcpp::Node
     : Node("PeriodicNode")
     {
       RCLCPP_INFO(this->get_logger(), "PeriodicNode started");
-      publisher_ = this->create_publisher<std_msgs::msg::UInt32>("hash", 10);
-      timer_ = this->create_wall_timer( std::chrono::milliseconds(200), std::bind(&PeriodicNode::timer_callback, this));
+      publisher_ = this->create_publisher<std_msgs::msg::UInt32MultiArray>("hash", 10);
+      timer_ = this->create_wall_timer( std::chrono::milliseconds(250), std::bind(&PeriodicNode::timer_callback, this));
+	    
+      inputdata_ = (uint32_t*)malloc(1555200*sizeof(uint32_t));
+
+      for(int i = 0; i < 1555200; i++)
+		    inputdata_[i] = i;
     }
 
   private:
     void timer_callback(void) const
     {
-      RCLCPP_INFO(this->get_logger(), "Sobel with input data ");
-      auto output_msg = std_msgs::msg::UInt32();
-      output_msg.data = calc_periodic(time(0));
+      RCLCPP_INFO(this->get_logger(), "Periodic call");
+      auto output_msg = std_msgs::msg::UInt32MultiArray();
+      output_msg.data.resize(8);
+      sha256(inputdata_, 1555200, &output_msg.data[0]);;
       publisher_->publish(output_msg);
     }
 
+    uint32_t * inputdata_;
     rclcpp::TimerBase::SharedPtr timer_;
-    rclcpp::Publisher<std_msgs::msg::UInt32>::SharedPtr publisher_;
+    rclcpp::Publisher<std_msgs::msg::UInt32MultiArray>::SharedPtr publisher_;
 };
 
 
