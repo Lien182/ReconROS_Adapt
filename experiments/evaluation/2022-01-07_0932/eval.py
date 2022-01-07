@@ -88,38 +88,65 @@ periodic_time = df_periodic['Periodic'][1000]
 print(periodic_time)
 periodic_data = df_periodic['Periodic'][1:1000]
 
+binmin = 0
+binmax = 1000
+binwidth = 10
 
-fig, axs = plt.subplots(2, 3)
-axs[0, 0].plot(inverse_data, 'tab:blue', label='Standard Avg {:.2f}'.format(np.average(inverse_data)))
-axs[0, 0].plot(rrinverse_data, 'tab:green', label='ReconROS Avg {:.2f}'.format(np.average(rrinverse_data)))
-axs[0, 0].plot(rrhwinverse_data, 'tab:red', label='ReconROS HW Avg {:.2f}'.format(np.average(rrhwinverse_data)))
-axs[0, 0].legend()
-axs[0, 0].set_title('Inverse')
-#axs[0, 0].set_xlim([0, 300])
-axs[0, 0].set_ylim([0, 500])
-axs[0, 1].plot(mnist_data, 'tab:blue', label='Standard Avg {:.2f}'.format(np.average(mnist_data)))
-axs[0, 1].plot(rrmnist_data, 'tab:green', label='ReconROS Avg {:.2f}'.format(np.average(rrmnist_data)))
-axs[0, 1].plot(rrhwmnist_data, 'tab:red', label='ReconROS HW Avg {:.2f}'.format(np.average(rrhwmnist_data)))
-axs[0, 1].legend()
-axs[0, 1].set_title('Mnist')
-#axs[0, 1].set_xlim([0, 300])
-axs[0, 1].set_ylim([0, 500])
-axs[1, 0].plot(sobel_data, 'tab:blue', label='Standard Avg {:.2f}'.format(np.average(sobel_data)))
-axs[1, 0].plot(rrsobel_data, 'tab:green', label='ReconROS Avg {:.2f}'.format(np.average(rrsobel_data)))
-axs[1, 0].plot(rrhwsobel_data, 'tab:red', label='ReconROS Avg {:.2f}'.format(np.average(rrhwsobel_data)))
-axs[1, 0].legend()
-axs[1, 0].set_ylim([0, 500])
-axs[1, 0].set_title('Sobel')
-axs[1, 1].plot(sort_data, 'tab:blue', label='Standard Avg {:.2f}'.format(np.average(sort_data)))
-axs[1, 1].plot(rrsort_data, 'tab:green', label='ReconROS Avg {:.2f}'.format(np.average(rrsort_data)))
-axs[1, 1].plot(rrhwsort_data, 'tab:red', label='ReconROS Avg {:.2f}'.format(np.average(rrhwsort_data)))
-axs[1, 1].legend()
-axs[1, 1].set_title('Sort')
-axs[1, 1].set_ylim([0, 500])
-axs[1, 2].plot(periodic_data, 'tab:blue', label='Standard Avg {:.2f}'.format(np.average(periodic_data)))
-axs[1, 2].plot(rrperiodic_data, 'tab:green', label='ReconROS Avg {:.2f}'.format(np.average(rrperiodic_data)))
-axs[1, 2].plot(rrhwperiodic_data, 'tab:red', label='ReconROS Avg {:.2f}'.format(np.average(rrhwperiodic_data)))
-axs[1, 2].legend()
-axs[1, 2].set_title('Periodic')
-axs[1, 2].set_ylim([0, 500])
+bins = range(binmin, binmax + binwidth, binwidth)
+print(bins)
+fig, axs = plt.subplots(3, 6)
+
+axs[0,0].text(0.5, 0.5,"Standard\n ROS 2\nExecutor"         ,fontsize=12,horizontalalignment='center',verticalalignment='center')
+axs[1,0].text(0.5, 0.5,"ReconROS\n Executor\n HW and SW"    ,fontsize=12,horizontalalignment='center',verticalalignment='center')
+axs[2,0].text(0.5, 0.5,"ReconROS\n Executor\n HW"           ,fontsize=12,horizontalalignment='center',verticalalignment='center')
+
+axs[0, 1].hist(inverse_data, bins=bins,label='Avg {:.2f}'.format(np.average(inverse_data),np.var(inverse_data)))
+axs[1, 1].hist(rrinverse_data, bins=bins,label='Avg {:.2f}'.format(np.average(rrinverse_data),np.var(rrinverse_data)))
+axs[2, 1].hist(rrhwinverse_data, bins=bins,label='Avg {:.2f}'.format(np.average(rrhwinverse_data),np.var(rrhwinverse_data)))
+
+axs[0, 2].hist(mnist_data, bins=bins,label='Avg {:.2f}'.format(np.average(mnist_data),np.var(mnist_data)))
+axs[1, 2].hist(rrmnist_data, bins=bins,label=' Avg {:.2f}'.format(np.average(rrmnist_data),np.var(rrmnist_data)))
+axs[2, 2].hist(rrhwmnist_data, bins=bins, label='Avg {:.2f}'.format(np.average(rrhwmnist_data),np.var(rrhwmnist_data)))
+
+axs[0, 3].hist(sobel_data, bins=bins,label='Avg {:.2f}'.format(np.average(sobel_data),np.var(sobel_data)))
+axs[1, 3].hist(rrsobel_data, bins=bins,label='Avg {:.2f}'.format(np.average(rrsobel_data),np.var(rrsobel_data)))
+axs[2, 3].hist(rrhwsobel_data, bins=bins, label='Avg {:.2f}'.format(np.average(rrhwsobel_data),np.var(rrhwsobel_data)))
+
+axs[0, 4].hist(sort_data, bins=bins,label='Avg {:.2f}'.format(np.average(sort_data),np.var(sort_data)))
+axs[1, 4].hist(rrsort_data, bins=bins,label='Avg {:.2f}'.format(np.average(rrsort_data),np.var(rrsort_data)))
+axs[2, 4].hist(rrhwsort_data, bins=bins, label='Avg {:.2f}'.format(np.average(rrhwsort_data),np.var(rrhwsort_data)))
+
+axs[0, 5].hist(periodic_data, bins=bins, label='Avg {:.2f}'.format(np.average(periodic_data),np.var(periodic_data)))
+axs[1, 5].hist(rrperiodic_data, bins=bins, label='Avg {:.2f}'.format(np.average(rrperiodic_data),np.var(rrperiodic_data)))
+axs[2, 5].hist(rrhwperiodic_data, bins=bins, label='Avg {:.2f}'.format(np.average(rrhwperiodic_data),np.var(rrhwperiodic_data)))
+
+for i in range(0,3):
+    axs[i, 0].axis('off')
+
+    axs[i, 1].legend()
+    axs[i, 1].set_title('Inverse')
+    axs[i, 1].set_ylim([0, 100])
+    axs[i, 1].set_xlim([0, 500])
+
+    axs[i, 2].legend()
+    axs[i, 2].set_title('Mnist')
+    axs[i, 2].set_ylim([0, 100])
+    axs[i, 2].set_xlim([0, 500])
+
+    axs[i, 3].legend()
+    axs[i, 3].set_ylim([0, 100])
+    axs[i, 3].set_title('Sobel')
+    axs[i, 3].set_xlim([0, 500])
+
+    axs[i, 4].legend()
+    axs[i, 4].set_title('Sort')
+    axs[i, 4].set_ylim([0, 100])
+    axs[i, 4].set_xlim([0, 500])
+
+    axs[i, 5].legend()
+    axs[i, 5].set_title('Periodic')
+    axs[i, 5].set_ylim([0, 100])
+    axs[i, 5].set_xlim([0, 500])
+
+
 plt.show()
